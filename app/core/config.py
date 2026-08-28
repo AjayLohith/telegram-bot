@@ -45,8 +45,10 @@ class Settings(BaseSettings):
     mistral_model: str = "mistral-small-latest"
     gemini_api_key: str | None = None
     news_api_key: str | None = None
+    turso_auth_token: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
 
     @property
     def admin_ids(self) -> set[int]:

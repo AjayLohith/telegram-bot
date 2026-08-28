@@ -15,7 +15,13 @@ from pathlib import Path
 
 db_url = settings.database_url
 if db_url.startswith("libsql://"):
-    db_url = db_url.replace("libsql://", "sqlite+libsql://", 1)
+    host = db_url.replace("libsql://", "").split("?")[0]
+    token = settings.turso_auth_token
+    if token and "authToken=" not in db_url:
+        db_url = f"sqlite+libsql://{host}?authToken={token}&secure=true"
+    else:
+        db_url = db_url.replace("libsql://", "sqlite+libsql://", 1)
+
 
 if db_url.startswith("sqlite://"):
     db_path_str = db_url.replace("sqlite:///", "")
