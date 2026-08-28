@@ -13,21 +13,26 @@ class Base(DeclarativeBase):
 import os
 from pathlib import Path
 
-if settings.database_url.startswith("sqlite"):
-    db_path_str = settings.database_url.replace("sqlite:///", "")
-    if db_path_str and db_path_str != ":memory:":
+db_url = settings.database_url
+if db_url.startswith("libsql://"):
+    db_url = db_url.replace("libsql://", "sqlite+libsql://", 1)
+
+if db_url.startswith("sqlite://"):
+    db_path_str = db_url.replace("sqlite:///", "")
+    if db_path_str and db_path_str != ":memory:" and not db_path_str.startswith("http"):
         db_path = Path(db_path_str).resolve()
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
-connect_args = {"check_same_thread": False, "timeout": 30} if settings.database_url.startswith("sqlite") else {}
-engine = create_engine(settings.database_url, connect_args=connect_args)
-if settings.database_url.startswith("sqlite"):
+connect_args = {"check_same_thread": False, "timeout": 30} if "sqlite" in db_url and "libsql" not in db_url else {}
+engine = create_engine(db_url, connect_args=connect_args)
+if db_url.startswith("sqlite://") and "libsql" not in db_url:
     try:
         with engine.connect() as connection:
             connection.exec_driver_sql("PRAGMA journal_mode=WAL")
     except Exception:
         pass
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
 
 
 
