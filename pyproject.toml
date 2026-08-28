@@ -1,0 +1,31 @@
+[project]
+name = "personal-ai-os"
+version = "0.1.0"
+description = "A persistent, provider-independent Telegram intelligence assistant."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "pydantic-settings>=2.6,<3",
+  "sqlalchemy>=2.0,<3",
+  "uvicorn[standard]>=0.34,<1",
+  "httpx>=0.28,<1",
+  "feedparser>=6.0,<7",
+  "beautifulsoup4>=4.12,<5",
+  "apscheduler>=3.10,<4",
+  "aiogram>=3.17,<4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3,<9", "pytest-asyncio>=0.25,<1"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"

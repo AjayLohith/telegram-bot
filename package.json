@@ -1,0 +1,19 @@
+{
+  "name": "personal-ai-os",
+  "version": "0.1.0",
+  "description": "Telegram Daily Productivity & News Intelligence Bot",
+  "scripts": {
+    "server": ".\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload",
+    "start": ".\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload",
+    "dev": ".\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --reload",
+    "test": ".\\.venv\\Scripts\\python.exe -m pytest"
+  },
+  "keywords": [
+    "telegram-bot",
+    "productivity",
+    "news",
+    "fastapi"
+  ],
+  "author": "",
+  "license": "MIT"
+}
