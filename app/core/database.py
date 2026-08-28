@@ -30,14 +30,24 @@ if db_url.startswith("sqlite://"):
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
 connect_args = {"check_same_thread": False, "timeout": 30} if "sqlite" in db_url and "libsql" not in db_url else {}
-engine = create_engine(db_url, connect_args=connect_args)
-if db_url.startswith("sqlite://") and "libsql" not in db_url:
+try:
+    engine = create_engine(db_url, connect_args=connect_args)
+    with engine.connect() as conn:
+        pass
+except Exception as e:
+    # If remote dialect fails, fallback gracefully to local SQLite
+    local_db_path = Path("./data/app.db").resolve()
+    local_db_path.parent.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(f"sqlite:///{local_db_path}", connect_args={"check_same_thread": False, "timeout": 30})
+
+if str(engine.url).startswith("sqlite://") and "libsql" not in str(engine.url):
     try:
         with engine.connect() as connection:
             connection.exec_driver_sql("PRAGMA journal_mode=WAL")
     except Exception:
         pass
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
 
 
 
