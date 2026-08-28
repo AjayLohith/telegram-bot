@@ -17,12 +17,26 @@ def _get_user_lang(telegram_id: int) -> str:
         return user.language if user else "en"
 
 
+@router.message(Command("testnews"))
+async def test_news_cmd(message: Message) -> None:
+    """Instantly delivers the complete 07:00 AM news briefing as a test push notification."""
+    lang = _get_user_lang(message.from_user.id)
+    status_msg = await message.answer("🔄 Generating test 07:00 AM news briefing, sir...")
+    with SessionLocal() as session:
+        sections = await build_full_daily_digest(session, language=lang)
+    await status_msg.delete()
+    for section in sections:
+        if section.strip():
+            await message.answer(section, parse_mode="HTML", disable_web_page_preview=True, disable_notification=False)
+
+
 @router.message(Command("news"))
 @router.message(F.text.regexp(r"^/news[\s\u00a0\u2000-\u200f]", mode="search"))
 @router.message(F.text.regexp(r"^/news\b", mode="search"))
 @router.message(F.text == "📰 Today's News")
 @router.message(F.text.startswith(("/news", "news")))
 async def news_command(message: Message) -> None:
+
 
     args = (message.text or "").strip().split()
     lang = _get_user_lang(message.from_user.id)

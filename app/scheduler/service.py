@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.bot.formatters import format_daily_summary, format_missed_task_reminder, format_morning_message
-from app.bot.keyboards import get_tasks_inline_keyboard
+from app.bot.keyboards import get_reminder_delivery_keyboard, get_tasks_inline_keyboard
 from app.bot.sanitizer import sanitize_zero_urls
 from app.core.config import settings
 from app.core.database import SessionLocal
@@ -18,7 +18,7 @@ from app.database.repositories.news_repo import NewsRepository
 from app.database.repositories.reminder_repo import ReminderRepository
 from app.database.repositories.user_repo import UserRepository
 from app.news.digest import build_full_daily_digest
-from app.productivity.reminder_ai import format_reminder_message, generate_reminder_focus
+from app.productivity.reminder_ai import _build_deterministic_focus, format_reminder_message, generate_reminder_focus
 from app.productivity.service import ProductivityService
 
 logger = logging.getLogger(__name__)
@@ -30,11 +30,11 @@ _SENT_NOTIFICATIONS: set[tuple[int, date, str]] = set()
 async def check_and_dispatch_scheduled_events(bot: Bot) -> None:
     """Universal timezone scheduler dispatcher:
 
-    1. Evaluates every 30 seconds across each active user's local timezone.
+    1. Evaluates every 15 seconds across all active users and custom reminders.
     2. Sends 07:00 AM Daily News Digest with exponential retries and Delivery tracking.
     3. Triggers custom `/remainder` reminders with On-Trigger Dynamic AI summaries.
     4. Triggers built-in morning challenge, video, study, exercise, nudges, and EOD summaries.
-    5. Recovers seamlessly after restarts and avoids duplicates.
+    5. Dispatches with loud sound (disable_notification=False) and [✅ Done] action button.
     """
     try:
         with SessionLocal() as session:
@@ -59,7 +59,7 @@ async def check_and_dispatch_scheduled_events(bot: Bot) -> None:
                 curr_hhmm = user_now.strftime("%H:%M")
 
                 # ==========================================
-                # 1. 07:00 AM Daily News Digest (Prompt Section 4 & 5)
+                # 1. 07:00 AM Daily News Digest
                 # ==========================================
                 # Pre-warm news cache at 06:55 so 07:00 delivery has 0s latency
                 if curr_hhmm == "06:55" and (user.id, user_date, "news_prewarm") not in _SENT_NOTIFICATIONS:
@@ -74,27 +74,15 @@ async def check_and_dispatch_scheduled_events(bot: Bot) -> None:
                         asyncio.create_task(_send_daily_news_with_retry(bot, user.telegram_id, user.id, user.language, user_date))
                     _SENT_NOTIFICATIONS.add((user.id, user_date, "news"))
 
-
                 # ==========================================
-                # 2. Custom /remainder Reminders (Prompt Section 25 & 30)
-                # ==========================================
-                rem_repo = ReminderRepository(session)
-                user_reminders = rem_repo.list_active_reminders(user.telegram_id)
-                for rem in user_reminders:
-                    rem_key = (user.id, user_date, f"rem_{rem.id}")
-                    if curr_hhmm == rem.reminder_time and rem_key not in _SENT_NOTIFICATIONS:
-                        asyncio.create_task(_send_custom_reminder(bot, rem.id, user.telegram_id, rem.task_name, rem.display_time or rem.reminder_time, tz_name))
-                        _SENT_NOTIFICATIONS.add(rem_key)
-
-                # ==========================================
-                # 3. Built-in Morning Challenge (08:00 AM)
+                # 2. Built-in Morning Challenge (08:00 AM)
                 # ==========================================
                 if curr_hhmm == user.morning_time and (user.id, user_date, "morning") not in _SENT_NOTIFICATIONS:
                     await _send_morning_challenge(bot, session, user, user_date)
                     _SENT_NOTIFICATIONS.add((user.id, user_date, "morning"))
 
                 # ==========================================
-                # 4. Built-in Task Reminders
+                # 3. Built-in Task Reminders
                 # ==========================================
                 if curr_hhmm == user.video_time and (user.id, user_date, "task_video") not in _SENT_NOTIFICATIONS:
                     await _send_task_reminder(bot, session, user, user_date, "video", "🎥 Video Time", "Time to watch your educational/learning video! 🎥")
@@ -109,7 +97,7 @@ async def check_and_dispatch_scheduled_events(bot: Bot) -> None:
                     _SENT_NOTIFICATIONS.add((user.id, user_date, "task_exercise"))
 
                 # ==========================================
-                # 5. Missed Task Nudges (19:30)
+                # 4. Missed Task Nudges (19:30)
                 # ==========================================
                 if user.missed_reminders_enabled and (user.id, user_date, "missed_check") not in _SENT_NOTIFICATIONS:
                     if curr_hhmm == "19:30":
@@ -117,11 +105,43 @@ async def check_and_dispatch_scheduled_events(bot: Bot) -> None:
                         _SENT_NOTIFICATIONS.add((user.id, user_date, "missed_check"))
 
                 # ==========================================
-                # 6. End-of-Day Summary & Remarks (21:00)
+                # 5. End-of-Day Summary & Remarks (21:00)
                 # ==========================================
                 if curr_hhmm == user.eod_time and (user.id, user_date, "eod") not in _SENT_NOTIFICATIONS:
                     await _send_eod_summary(bot, session, user, user_date)
                     _SENT_NOTIFICATIONS.add((user.id, user_date, "eod"))
+
+            # ==========================================
+            # 6. Direct Active Reminders Dispatcher
+            # ==========================================
+            rem_repo = ReminderRepository(session)
+            active_reminders = rem_repo.list_active_reminders()
+            for rem in active_reminders:
+                rem_tz_name = rem.timezone or settings.timezone
+                try:
+                    rem_tz = ZoneInfo(rem_tz_name)
+                except Exception:
+                    rem_tz = ZoneInfo("Asia/Kolkata")
+
+                rem_now = datetime.now(rem_tz)
+                rem_date = rem_now.date()
+                rem_curr_hhmm = rem_now.strftime("%H:%M")
+
+                rem_target_hhmm = rem.reminder_time.strip().zfill(5)
+                rem_key = (rem.telegram_user_id, rem_date, f"rem_{rem.id}")
+
+                if rem_curr_hhmm == rem_target_hhmm and rem_key not in _SENT_NOTIFICATIONS:
+                    _SENT_NOTIFICATIONS.add(rem_key)
+                    asyncio.create_task(
+                        _send_custom_reminder(
+                            bot,
+                            rem.id,
+                            rem.telegram_user_id,
+                            rem.task_name,
+                            rem.display_time or rem.reminder_time,
+                            rem_tz_name,
+                        )
+                    )
 
     except Exception as err:
         logger.error("Error in scheduler periodic dispatcher: %s", err, exc_info=True)
@@ -158,7 +178,13 @@ async def _send_daily_news_with_retry(
             for sec in sections:
                 if sec.strip():
                     clean_msg = sanitize_zero_urls(sec)
-                    await bot.send_message(telegram_user_id, clean_msg, parse_mode="HTML", disable_web_page_preview=True)
+                    await bot.send_message(
+                        telegram_user_id,
+                        clean_msg,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True,
+                        disable_notification=False,
+                    )
                     await asyncio.sleep(0.3)
 
             with SessionLocal() as session:
@@ -185,9 +211,13 @@ async def _send_custom_reminder(
     display_time: str,
     tz_name: str,
 ) -> None:
-    """Generates the on-trigger dynamic AI focus summary and delivers the reminder."""
+    """Generates the on-trigger dynamic AI focus summary and delivers the reminder with loud sound."""
     try:
-        bullets = await generate_reminder_focus(task_name)
+        try:
+            bullets = await asyncio.wait_for(generate_reminder_focus(task_name), timeout=3.0)
+        except Exception:
+            bullets = _build_deterministic_focus(task_name)
+
         msg_text = format_reminder_message(
             task_name=task_name,
             display_time=display_time,
@@ -195,7 +225,15 @@ async def _send_custom_reminder(
             focus_bullets=bullets,
         )
         clean_msg = sanitize_zero_urls(msg_text)
-        await bot.send_message(telegram_user_id, clean_msg, parse_mode="HTML")
+        keyboard = get_reminder_delivery_keyboard(reminder_id)
+
+        await bot.send_message(
+            telegram_user_id,
+            clean_msg,
+            reply_markup=keyboard,
+            parse_mode="HTML",
+            disable_notification=False,
+        )
 
         with SessionLocal() as session:
             rem_repo = ReminderRepository(session)
@@ -213,7 +251,7 @@ async def _send_morning_challenge(bot: Bot, session, user: User, user_date: date
         msg_text = format_morning_message(user, progress.tasks, user_date, combined_news=user.morning_combined_enabled)
         clean_msg = sanitize_zero_urls(msg_text)
         keyboard = get_tasks_inline_keyboard(progress.tasks)
-        await bot.send_message(user.telegram_id, clean_msg, reply_markup=keyboard, parse_mode="HTML")
+        await bot.send_message(user.telegram_id, clean_msg, reply_markup=keyboard, parse_mode="HTML", disable_notification=False)
     except Exception as e:
         logger.warning("Failed to send morning challenge to %s: %s", user.telegram_id, e)
 
@@ -228,7 +266,7 @@ async def _send_task_reminder(bot: Bot, session, user: User, user_date: date, ta
 
         keyboard = get_tasks_inline_keyboard(progress.tasks)
         text = sanitize_zero_urls(f"<b>{title}</b>\n\n{subtitle}\n\nTarget: {task.target_value:g} {task.target_unit}")
-        await bot.send_message(user.telegram_id, text, reply_markup=keyboard, parse_mode="HTML")
+        await bot.send_message(user.telegram_id, text, reply_markup=keyboard, parse_mode="HTML", disable_notification=False)
     except Exception as e:
         logger.warning("Failed to send task reminder (%s) to %s: %s", task_type, user.telegram_id, e)
 
@@ -242,7 +280,7 @@ async def _send_missed_task_nudges(bot: Bot, session, user: User, user_date: dat
 
         for m in missed:
             nudge = sanitize_zero_urls(format_missed_task_reminder(m))
-            await bot.send_message(user.telegram_id, nudge, parse_mode="HTML")
+            await bot.send_message(user.telegram_id, nudge, parse_mode="HTML", disable_notification=False)
             await asyncio.sleep(0.3)
     except Exception as e:
         logger.warning("Failed to send missed task nudge to %s: %s", user.telegram_id, e)
@@ -253,7 +291,7 @@ async def _send_eod_summary(bot: Bot, session, user: User, user_date: date) -> N
         service = ProductivityService(session)
         progress = service.save_eod_summary(user.id, user_date)
         summary_text = sanitize_zero_urls(format_daily_summary(progress))
-        await bot.send_message(user.telegram_id, summary_text, parse_mode="HTML")
+        await bot.send_message(user.telegram_id, summary_text, parse_mode="HTML", disable_notification=False)
     except Exception as e:
         logger.warning("Failed to send EOD summary to %s: %s", user.telegram_id, e)
 
@@ -262,11 +300,11 @@ def start_scheduler(bot: Bot) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=timezone.utc)
     scheduler.add_job(
         check_and_dispatch_scheduled_events,
-        IntervalTrigger(seconds=30),
+        IntervalTrigger(seconds=15),
         args=[bot],
         id="periodic_scheduler_dispatcher",
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("Universal timezone scheduler started.")
+    logger.info("Universal timezone scheduler started with 15s precision.")
     return scheduler

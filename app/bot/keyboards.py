@@ -35,6 +35,17 @@ def get_tasks_inline_keyboard(tasks=None) -> InlineKeyboardMarkup:
 
 
 
+def get_reminder_delivery_keyboard(reminder_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Mark as Done", callback_data=f"rem_done:{reminder_id}"),
+                InlineKeyboardButton(text="⏰ Reminders", callback_data="btn_reminders"),
+            ]
+        ]
+    )
+
+
 def get_reminders_list_keyboard(reminders: list) -> InlineKeyboardMarkup:
     buttons = []
     for r in reminders:
@@ -42,17 +53,18 @@ def get_reminders_list_keyboard(reminders: list) -> InlineKeyboardMarkup:
         label = f"{status_icon} {r.task_name} ({r.display_time or r.reminder_time})"
         buttons.append([InlineKeyboardButton(text=label, callback_data=f"rem_info:{r.id}")])
         buttons.append([
-            InlineKeyboardButton(text="⏸ Pause" if r.active else "▶️ Resume", callback_data=f"rem_toggle:{r.id}"),
+            InlineKeyboardButton(text="⚡ Test", callback_data=f"rem_test:{r.id}"),
             InlineKeyboardButton(text="✅ Done", callback_data=f"rem_done:{r.id}"),
+            InlineKeyboardButton(text="⏸ Pause" if r.active else "▶️ Resume", callback_data=f"rem_toggle:{r.id}"),
             InlineKeyboardButton(text="🗑 Delete", callback_data=f"rem_del:{r.id}"),
         ])
-
 
     buttons.append([
         InlineKeyboardButton(text="➕ Add Reminder", callback_data="btn_add_reminder"),
         InlineKeyboardButton(text="📰 Today's News", callback_data="btn_news"),
     ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 
 
 def get_settings_keyboard(user: User) -> InlineKeyboardMarkup:

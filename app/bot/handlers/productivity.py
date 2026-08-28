@@ -535,8 +535,45 @@ async def cb_rem_done(call: CallbackQuery) -> None:
 
 
 
+@router.message(Command("testreminder"))
+async def test_reminder_command(message: Message) -> None:
+    """Manually fires a test reminder notification so the user can verify sound & popup."""
+    from app.bot.keyboards import get_reminder_delivery_keyboard
+    from app.productivity.reminder_ai import _build_deterministic_focus
+    with SessionLocal() as session:
+        rem_repo = ReminderRepository(session)
+        user_reminders = rem_repo.list_user_reminders(message.from_user.id)
+        if user_reminders:
+            rem = user_reminders[0]
+            task_name = rem.task_name
+            rem_id = rem.id
+            display_time = rem.display_time or rem.reminder_time
+            tz_name = rem.timezone
+        else:
+            task_name = "Study DSA"
+            rem_id = 1
+            display_time = "16:04"
+            tz_name = settings.timezone
+
+    try:
+        bullets = await asyncio.wait_for(generate_reminder_focus(task_name), timeout=3.0)
+    except Exception:
+        bullets = _build_deterministic_focus(task_name)
+
+    rem_msg = format_reminder_message(
+        task_name=task_name,
+        display_time=display_time,
+        tz_name=tz_name,
+        focus_bullets=bullets,
+    )
+    keyboard = get_reminder_delivery_keyboard(rem_id)
+    await message.answer(rem_msg, reply_markup=keyboard, parse_mode="HTML", disable_notification=False)
+
+
 @router.callback_query(F.data.startswith("rem_test:"))
 async def cb_rem_test(call: CallbackQuery) -> None:
+    from app.bot.keyboards import get_reminder_delivery_keyboard
+    from app.productivity.reminder_ai import _build_deterministic_focus
     rem_id = int(call.data.split(":")[1])
     with SessionLocal() as session:
         rem_repo = ReminderRepository(session)
@@ -546,15 +583,21 @@ async def cb_rem_test(call: CallbackQuery) -> None:
         await call.answer("Reminder not found.", show_alert=True)
         return
 
-    await call.answer("Sending test reminder...")
-    bullets = await generate_reminder_focus(reminder.task_name)
+    await call.answer("Triggering reminder notification, sir...")
+    try:
+        bullets = await asyncio.wait_for(generate_reminder_focus(reminder.task_name), timeout=3.0)
+    except Exception:
+        bullets = _build_deterministic_focus(reminder.task_name)
+
     rem_msg = format_reminder_message(
         task_name=reminder.task_name,
         display_time=reminder.display_time or reminder.reminder_time,
         tz_name=reminder.timezone,
         focus_bullets=bullets,
     )
-    await call.message.answer(f"🧪 <b>[Test Reminder Trigger]</b>\n\n{rem_msg}", parse_mode="HTML")
+    keyboard = get_reminder_delivery_keyboard(rem_id)
+    await call.message.answer(rem_msg, reply_markup=keyboard, parse_mode="HTML", disable_notification=False)
+
 
 
 
