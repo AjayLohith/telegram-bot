@@ -34,21 +34,21 @@ async def start_handler(message: Message) -> None:
         user_tz = user.timezone or settings.timezone
 
     welcome_text = (
-        f"👋 <b>Welcome to Personal AI OS!</b>\n\n"
-        f"Your verified daily news briefing & personal productivity reminder assistant.\n\n"
-        f"📰 <b>Daily News Delivery:</b> 07:00 AM IST\n"
-        f"⏰ <b>Active Reminders:</b> {len(reminders)}\n"
-        f"🌍 <b>Timezone:</b> {user_tz}\n\n"
-        f"<b>Quick Actions:</b>\n"
-        f"• <code>/remainder &lt;task&gt; &lt;time&gt;</code> — Set daily reminder (e.g. <code>/remainder Study DSA 8:30 PM</code>)\n"
-        f"• <code>/ask &lt;question&gt;</code> — Fast 1-line answer (Multi-LLM)\n"
-        f"• <code>/reminders</code> — View and manage your reminders\n"
-        f"• <code>/news</code> — Read latest verified news digest\n"
-        f"• <code>/settings</code> — Configure timezone & preferences"
+        f"🤖 <b>J.A.R.V.I.S. PROTOCOLS ONLINE</b>\n\n"
+        f"Good day, sir. All neural diagnostics, task schedulers, and intelligence feeds are fully operational.\n\n"
+        f"📰 <b>Daily Intelligence Briefing:</b> 07:00 AM IST\n"
+        f"⏰ <b>Active Directives:</b> {len(reminders)}\n"
+        f"🌍 <b>Chronometer:</b> {user_tz}\n\n"
+        f"<b>Tactical Commands:</b>\n"
+        f"• <code>Study DSA 16:04</code> — Set reminder directive (24h or 12h)\n"
+        f"• <code>ask &lt;query&gt;</code> — Instant 1-line intelligence lookup\n"
+        f"• <code>reminders</code> — View & manage your directives\n"
+        f"• <code>news</code> — 25-item Verified Intelligence Digest\n"
+        f"• <code>settings</code> — Configure core protocols"
     )
     clean_dashboard_kb = get_clean_dashboard_keyboard()
     await message.answer(welcome_text, reply_markup=get_main_reply_keyboard(), parse_mode="HTML")
-    await message.answer("⚡ <b>Quick Menu:</b>", reply_markup=clean_dashboard_kb, parse_mode="HTML")
+    await message.answer("⚡ <b>Tactical Interface:</b>", reply_markup=clean_dashboard_kb, parse_mode="HTML")
 
 
 @base_router.message(Command("ask"))
@@ -63,10 +63,16 @@ async def ask_command(message: Message) -> None:
         query = raw.strip()
 
     if not query or query == "/ask":
-        await message.answer("💬 <b>Quick AI Answer</b>\n\nUsage: <code>/ask What is the speed of light?</code>\nor simply type: <code>ask What is the capital of Japan?</code>", parse_mode="HTML")
+        await message.answer(
+            "💬 <b>J.A.R.V.I.S. Intelligence Query</b>\n\n"
+            "Usage: <code>/ask What is the speed of light?</code>\n"
+            "or simply: <code>ask What is quantum computing?</code>\n\n"
+            "<i>I will provide a concise, single-sentence response, sir.</i>",
+            parse_mode="HTML",
+        )
         return
 
-    status = await message.answer("💭...")
+    status = await message.answer("💭 Processing query, sir...")
     answer = await ask_fast_answer(query)
     try:
         await status.delete()
@@ -78,14 +84,13 @@ async def ask_command(message: Message) -> None:
 @base_router.message(F.text == "❓ Ask AI")
 async def ask_ai_button(message: Message) -> None:
     await message.answer(
-        "💬 <b>Ask me anything!</b>\n\n"
-        "You can type your question directly, or use:\n"
-        "• <code>/ask What is the speed of light?</code>\n"
-        "• <code>ask Explain quantum computing in 1 line</code>\n\n"
-        "<i>Answers quickly in a single crisp sentence!</i>",
+        "💬 <b>J.A.R.V.I.S. at your service, sir.</b>\n\n"
+        "Ask any question directly or use:\n"
+        "• <code>ask What is quantum computing?</code>\n"
+        "• <code>/ask Explain neural networks in 1 line</code>\n\n"
+        "<i>Delivers fast, high-accuracy 1-line intel.</i>",
         parse_mode="HTML",
     )
-
 
 
 @base_router.message(Command("help"))
@@ -104,14 +109,15 @@ async def status_handler(message: Message) -> None:
         now_str = datetime.now(ZoneInfo(user_tz)).strftime("%Y-%m-%d %H:%M:%S %Z")
 
     status_msg = (
-        f"🤖 <b>SYSTEM STATUS</b>\n\n"
-        f"🟢 Bot: Online & Operational\n"
-        f"🟢 Database: Connected (SQLite)\n"
-        f"🌍 Your Timezone: {user_tz}\n"
-        f"🕒 Current Time: {now_str}\n"
-        f"🧠 Saved Memories: {memory_count}\n"
-        f"⚡ News Aggregator: Ready (5 Categories)\n"
-        f"⚡ Quick Ask (/ask): Enabled"
+        f"🤖 <b>J.A.R.V.I.S. SYSTEM DIAGNOSTICS</b>\n\n"
+        f"🟢 Core Intelligence: Online & Nominal\n"
+        f"🛡️ Arc Reactor / Server: 100% Operational\n"
+        f"🌍 Chronometer: {user_tz}\n"
+        f"🕒 Local Time: {now_str}\n"
+        f"🧠 Neural Memories: {memory_count}\n"
+        f"⚡ Global News Feeds: 5 Categories Verified\n"
+        f"⚡ Multi-LLM Protocol: Active\n\n"
+        f"<i>Always at your service, sir.</i>"
     )
     await message.answer(status_msg, parse_mode="HTML")
 
@@ -134,13 +140,13 @@ async def default_message_handler(message: Message) -> None:
     # If it's an unrecognized slash command, guide user
     if text.startswith("/"):
         await message.answer(
-            f"❓ Unrecognized command <code>{text.split()[0]}</code>.\n\n"
-            "💡 Available commands:\n"
-            "• <code>/remainder &lt;task&gt; &lt;time&gt;</code> — Set reminder (e.g. <code>/remainder Study DSA 8:30 PM</code>)\n"
-            "• <code>/ask &lt;question&gt;</code> — Quick 1-line answer\n"
-            "• <code>/reminders</code> — View your reminders\n"
-            "• <code>/news</code> — Daily news digest\n"
-            "• <code>/settings</code> — Configure preferences",
+            f"❓ Unrecognized protocol <code>{text.split()[0]}</code>, sir.\n\n"
+            "💡 Available Protocols:\n"
+            "• <code>Study DSA 16:04</code> — Set reminder directive\n"
+            "• <code>ask &lt;query&gt;</code> — Quick intelligence lookup\n"
+            "• <code>reminders</code> — View active directives\n"
+            "• <code>news</code> — Daily news briefing\n"
+            "• <code>settings</code> — Configure core protocols",
             reply_markup=get_main_reply_keyboard(),
             parse_mode="HTML",
         )

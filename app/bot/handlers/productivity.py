@@ -427,13 +427,15 @@ async def remainder_cmd(message: Message) -> None:
         )
 
     response_text = (
-        f"✅ <b>Reminder created</b>\n\n"
+        f"🎯 <b>Directive Registered, sir.</b>\n\n"
         f"<b>Task:</b> {reminder.task_name}\n"
-        f"<b>Time:</b> {reminder.display_time} {tz_name}\n"
-        f"<b>Status:</b> Active\n"
-        f"<b>ID:</b> {reminder.id}"
+        f"<b>Scheduled Time:</b> {reminder.display_time} {tz_name}\n"
+        f"<b>Protocol Status:</b> 🟢 Active\n"
+        f"<b>Directive ID:</b> #{reminder.id}\n\n"
+        f"<i>I shall deliver your tactical briefing on schedule.</i>"
     )
     await message.answer(response_text, parse_mode="HTML")
+
 
 
 @router.message(Command("reminders"))
@@ -522,14 +524,15 @@ async def cb_rem_done(call: CallbackQuery) -> None:
             return
         task_name = reminder.task_name
 
-    await call.answer(f"🎉 Completed: {task_name}!", show_alert=False)
-    name = call.from_user.first_name or "Champion"
+    await call.answer(f"🎯 Accomplished: {task_name}, sir!", show_alert=False)
+    name = call.from_user.first_name or "Sir"
     msg = (
-        f"🎉 <b>Awesome job, {name}!</b>\n\n"
-        f"✅ <b>{task_name}</b> marked as completed for today!\n\n"
-        f"🔥 Keep the momentum going. Consistency is key!"
+        f"🎯 <b>Directive Accomplished, {name}!</b>\n\n"
+        f"✅ <b>{task_name}</b> has been logged as completed for today.\n\n"
+        f"⚡ <i>Outstanding execution. Maintaining peak operational momentum!</i>"
     )
     await call.message.answer(msg, parse_mode="HTML")
+
 
 
 @router.callback_query(F.data.startswith("rem_test:"))

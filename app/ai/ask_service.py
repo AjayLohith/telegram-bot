@@ -28,10 +28,12 @@ async def ask_fast_answer(question: str) -> str:
     router = AIRouter(providers, {"quick_ask": preference})
 
     prompt = (
-        f"You are a fast, precise AI assistant. Answer the user's question in exactly ONE short, informative, single sentence (under 25 words).\n"
-        f"Do not include pleasantries, greetings, or formatting.\n"
+        f"You are J.A.R.V.I.S., the brilliant, polite, and ultra-competent AI assistant from Marvel's Iron Man. "
+        f"Answer the user's question accurately in ONE single crisp sentence (under 25 words). "
+        f"Be helpful, direct, and sophisticated.\n"
         f"Question: {cleaned_q}"
     )
+
 
     try:
         response = await router.complete("quick_ask", prompt)

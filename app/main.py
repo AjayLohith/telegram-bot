@@ -31,17 +31,18 @@ async def lifespan(app: FastAPI):
                 pass
 
 
-app = FastAPI(title="Personal AI OS", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="J.A.R.V.I.S. // Personal AI OS", version="0.2.0", lifespan=lifespan)
 
 
 @app.get("/")
 def root() -> dict[str, str]:
     return {
         "status": "online",
-        "service": "Personal AI OS - Telegram Productivity & News Intelligence Bot",
+        "system": "J.A.R.V.I.S. Mark VII - Telegram Productivity & News Intelligence Assistant",
         "health": "/health",
         "docs": "/docs",
     }
+
 
 
 @app.get("/health")

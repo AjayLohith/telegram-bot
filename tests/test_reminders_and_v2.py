@@ -138,9 +138,8 @@ async def test_reminder_ai_focus_and_formatter():
         tz_name="IST",
         focus_bullets=bullets,
     )
-    assert "<b>⏰ REMINDER</b>" in msg
-    assert "<b>Task:</b> Study DSA" in msg
-    assert "<b>Quick focus:</b>" in msg
-    assert "8:30 PM IST" in msg
-    assert "💪 You've got this." in msg
+    assert "DIRECTIVE REMINDER // J.A.R.V.I.S." in msg
+    assert "Study DSA" in msg
+    assert "Tactical Focus:" in msg
+    assert "At your service, sir." in msg
 

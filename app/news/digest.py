@@ -196,16 +196,18 @@ async def build_full_daily_digest(
     date_str = now_ist.strftime("%d %B %Y")
 
     header_msg = (
-        "<b>📰 DAILY INTELLIGENCE DIGEST</b>\n\n"
+        "🌐 <b>J.A.R.V.I.S. DAILY INTELLIGENCE BRIEFING</b>\n\n"
         f"📅 {date_str}\n"
         f"⏰ {settings.news_time} AM IST\n\n"
-        "<b>Today's verified news:</b>\n\n"
-        "🤖 AI — 5\n"
-        "🌍 Geography / World — 5\n"
-        "🍥 Anime — 5\n"
-        "🟡 Telugu — 5\n"
-        "🇮🇳 India — 5"
+        "<b>Verified Intelligence Categories:</b>\n\n"
+        "🤖 AI Developments — 5\n"
+        "🌍 Global & Geopolitics — 5\n"
+        "🍥 Anime & Culture — 5\n"
+        "🟡 Telugu & Regional — 5\n"
+        "🇮🇳 India National — 5\n\n"
+        "<i>All sources cross-verified for accuracy, sir.</i>"
     )
+
 
     messages = [sanitize_zero_urls(header_msg)]
 

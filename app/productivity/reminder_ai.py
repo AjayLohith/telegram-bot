@@ -85,11 +85,12 @@ def format_reminder_message(task_name: str, display_time: str, tz_name: str, foc
     bullet_text = "\n".join(f"• {b}" for b in focus_bullets)
     time_str = f"{display_time} {tz_name}" if display_time else f"{tz_name}"
     return (
-        f"<b>⏰ REMINDER</b>\n\n"
+        f"🎯 <b>DIRECTIVE REMINDER // J.A.R.V.I.S.</b>\n\n"
         f"<b>Task:</b> {task_name}\n\n"
-        f"<b>Quick focus:</b>\n"
+        f"<b>Tactical Focus:</b>\n"
         f"{bullet_text}\n\n"
-        f"Time: <b>{time_str}</b>\n\n"
-        f"💪 You've got this."
+        f"Scheduled: <b>{time_str}</b>\n\n"
+        f"<i>At your service, sir. Let's make this session count.</i>"
     )
+
 
