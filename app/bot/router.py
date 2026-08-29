@@ -36,7 +36,7 @@ async def start_handler(message: Message) -> None:
     welcome_text = (
         f"🤖 <b>J.A.R.V.I.S. PROTOCOLS ONLINE</b>\n\n"
         f"Good day, sir. All neural diagnostics, task schedulers, and intelligence feeds are fully operational.\n\n"
-        f"📰 <b>Daily Intelligence Briefing:</b> 07:00 AM IST\n"
+        f"📰 <b>Daily Intelligence Briefing:</b> 07:00 IST\n"
         f"⏰ <b>Active Directives:</b> {len(reminders)}\n"
         f"📊 <b>Google Sheets Assistant:</b> {'Active' if settings.google_spreadsheet_id else 'Configurable'}\n"
         f"🌍 <b>Chronometer:</b> {user_tz}\n\n"

@@ -190,7 +190,7 @@ class CompetitionTrackerEngine:
 
     @staticmethod
     def clean_time_str(time_val: Any) -> str:
-        """Cleans timestamps like 1899-12-30T16:00:00.000Z to 04:00 PM."""
+        """Cleans timestamps to standard 24-hour format HH:MM (e.g. 16:00, 07:30, 23:30)."""
         if not time_val:
             return "N/A"
         s = str(time_val).strip()
@@ -199,16 +199,30 @@ class CompetitionTrackerEngine:
         if "t" in s.lower():
             s = s.split("T" if "T" in s else "t")[1].replace("Z", "").replace("z", "").split(".")[0].strip()
         
+        # Check for 12-hour AM/PM string (e.g. "4:00 PM", "07:30 AM")
+        s_upper = s.upper()
+        if "AM" in s_upper or "PM" in s_upper:
+            is_pm = "PM" in s_upper
+            clean_s = s_upper.replace("AM", "").replace("PM", "").strip()
+            parts = clean_s.split(":")
+            if len(parts) >= 2:
+                try:
+                    hr = int(parts[0])
+                    mn = int(parts[1])
+                    if is_pm and hr < 12:
+                        hr += 12
+                    elif not is_pm and hr == 12:
+                        hr = 0
+                    return f"{hr:02d}:{mn:02d}"
+                except ValueError:
+                    pass
+
         parts = s.split(":")
         if len(parts) >= 2:
             try:
                 hr = int(parts[0])
                 mn = int(parts[1])
-                ampm = "AM" if hr < 12 else "PM"
-                display_hr = hr % 12
-                if display_hr == 0:
-                    display_hr = 12
-                return f"{display_hr:02d}:{mn:02d} {ampm}"
+                return f"{hr:02d}:{mn:02d}"
             except ValueError:
                 pass
         return s
