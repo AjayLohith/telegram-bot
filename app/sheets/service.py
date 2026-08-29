@@ -56,9 +56,10 @@ class SheetAIService:
         return AIRouter(providers, {"sheets_query": preference, "sheets_summary": preference})
 
     async def get_dataset(self, force_refresh: bool = False) -> SheetDataset:
-        """Retrieves and constructs a typed SheetDataset."""
+        """Retrieves and constructs a typed SheetDataset and synchronizes competition state."""
         try:
             raw_values = await self.client.fetch_sheet_data(force_refresh=force_refresh)
+            self.competition_data = CompetitionTrackerEngine.parse_competition_grid(raw_values, self.competition_data)
             return build_dataset_from_raw(raw_values, tz_str=settings.timezone)
         except Exception as e:
             logger.info("Using built-in competition dataset: %s", e)
@@ -89,17 +90,19 @@ class SheetAIService:
         try:
             self.client.invalidate_cache()
             dataset = await self.get_dataset(force_refresh=True)
+            winner = self.competition_data.get("competition_standings", {}).get("today_winner", "Abhi")
             return (
-                f"🔄 <b>Competition Tracker Refreshed Successfully</b>\n\n"
+                f"🔄 <b>Competition Tracker Refreshed</b>\n\n"
                 f"• <b>Entries:</b> {len(dataset.typed_rows)}\n"
-                f"• <b>Players Tracked:</b> Abhi, Ajay\n"
-                f"• <b>Latest Winner:</b> {self.competition_data.get('competition_standings', {}).get('today_winner', 'Abhi')}"
+                f"• <b>Players:</b> Abhi, Ajay\n"
+                f"• <b>Current Leader/Winner:</b> <b>{winner}</b>"
             )
         except Exception as e:
             return self._handle_error(e)
 
     async def get_overview(self) -> str:
         """Returns a structured overview of the 2-Person Competition Tracker."""
+        await self.get_dataset()
         winner_text = CompetitionTrackerEngine.format_winner_today(self.competition_data)
         leaderboard_text = CompetitionTrackerEngine.format_leaderboard(self.competition_data)
         return f"{winner_text}\n\n{leaderboard_text}"
@@ -111,6 +114,8 @@ class SheetAIService:
             return "Please provide a question regarding the competition tracker data."
 
         q_low = cleaned_q.lower()
+        force_sync = any(w in q_low for w in ("refresh", "reload", "update", "latest"))
+        dataset = await self.get_dataset(force_refresh=force_sync)
 
         # 1. Specialized fast deterministic handlers for Competition Tracker
         if any(w in q_low for w in ("winner today", "who is the winner today", "who won today", "today winner", "winner")):
@@ -129,8 +134,6 @@ class SheetAIService:
             return await self.get_overview()
         if q_low in ("refresh", "/refresh", "reload"):
             return await self.refresh()
-
-        dataset = await self.get_dataset()
         summary_schema = DeterministicEngine.get_summary(dataset)
         router = self._get_router()
 

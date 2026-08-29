@@ -177,6 +177,138 @@ class CompetitionTrackerEngine:
     """Specialized engine for 2-Person Daily Competition Tracker."""
 
     @staticmethod
+    def parse_competition_grid(raw_values: list[list[str]], existing_data: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Dynamically parses raw 2D grid from Google Sheet into structured competition data."""
+        data = dict(existing_data or DEFAULT_COMPETITION_DATA)
+        if not raw_values or len(raw_values) < 2:
+            return data
+
+        logged_days = []
+        p1_name = data.get("settings", {}).get("players", {}).get("person_1", "Abhi")
+        p2_name = data.get("settings", {}).get("players", {}).get("person_2", "Ajay")
+
+        # Scan for tracker rows
+        for row in raw_values:
+            if not row or not row[0].strip():
+                continue
+            first_cell = row[0].strip()
+            # Check if first cell looks like a date (e.g. 2026-..., 28/..., 29-...)
+            if not any(sep in first_cell for sep in ("-", "/")) and not first_cell.startswith("20"):
+                continue
+
+            # Standard 23-column tracker format
+            if len(row) >= 10:
+                def safe_float(val: Any, default: float = 0.0) -> float:
+                    if not val:
+                        return default
+                    try:
+                        clean = str(val).replace("%", "").replace("₹", "").replace("$", "").replace(",", "").strip()
+                        return float(clean)
+                    except ValueError:
+                        return default
+
+                def safe_int(val: Any, default: int = 0) -> int:
+                    if not val:
+                        return default
+                    try:
+                        clean = str(val).replace(",", "").strip()
+                        return int(float(clean))
+                    except ValueError:
+                        return default
+
+                def safe_bool(val: Any) -> bool:
+                    return str(val).strip().lower() in ("true", "yes", "y", "1")
+
+                p1_entry = {
+                    "wake_time": row[1].strip() if len(row) > 1 and row[1].strip() else None,
+                    "sleep_time": row[2].strip() if len(row) > 2 and row[2].strip() else None,
+                    "study_hrs": safe_float(row[3] if len(row) > 3 else 0),
+                    "english_hrs": safe_float(row[4] if len(row) > 4 else 0),
+                    "workout": safe_bool(row[5] if len(row) > 5 else False),
+                    "steps": safe_int(row[6] if len(row) > 6 else 0),
+                    "junk_food": safe_bool(row[7] if len(row) > 7 else False),
+                    "remarks": row[8].strip() if len(row) > 8 and row[8].strip() else None,
+                    "score": safe_float(row[9] if len(row) > 9 else 0),
+                    "completion_pct": f"{int(safe_float(row[10] if len(row) > 10 else row[9] if len(row) > 9 else 0))}%",
+                }
+
+                p2_entry = {
+                    "wake_time": row[11].strip() if len(row) > 11 and row[11].strip() else None,
+                    "sleep_time": row[12].strip() if len(row) > 12 and row[12].strip() else None,
+                    "study_hrs": safe_float(row[13] if len(row) > 13 else 0),
+                    "english_hrs": safe_float(row[14] if len(row) > 14 else 0),
+                    "workout": safe_bool(row[15] if len(row) > 15 else False),
+                    "steps": safe_int(row[16] if len(row) > 16 else 0),
+                    "junk_food": safe_bool(row[17] if len(row) > 17 else False),
+                    "remarks": row[18].strip() if len(row) > 18 and row[18].strip() else None,
+                    "score": safe_float(row[19] if len(row) > 19 else 0),
+                    "completion_pct": f"{int(safe_float(row[20] if len(row) > 20 else row[19] if len(row) > 19 else 0))}%",
+                }
+
+                # Determine winner from scores or result column
+                winner = row[21].strip() if len(row) > 21 and row[21].strip() else None
+                diff = safe_float(row[22] if len(row) > 22 else 0)
+
+                if not winner:
+                    if p1_entry["score"] > p2_entry["score"]:
+                        winner = p1_name
+                        diff = round(p1_entry["score"] - p2_entry["score"], 1)
+                    elif p2_entry["score"] > p1_entry["score"]:
+                        winner = p2_name
+                        diff = round(p2_entry["score"] - p1_entry["score"], 1)
+                    elif p1_entry["score"] > 0:
+                        winner = "Draw"
+                        diff = 0.0
+
+                logged_days.append({
+                    "date": first_cell,
+                    p1_name: p1_entry,
+                    p2_name: p2_entry,
+                    "result": {
+                        "winner": winner,
+                        "point_diff": diff,
+                    },
+                })
+
+        if logged_days:
+            data["daily_tracker"] = logged_days
+
+            # Recalculate standings
+            p1_total = sum(d.get(p1_name, {}).get("score", 0) for d in logged_days)
+            p2_total = sum(d.get(p2_name, {}).get("score", 0) for d in logged_days)
+            p1_wins = sum(1 for d in logged_days if d.get("result", {}).get("winner") == p1_name)
+            p2_wins = sum(1 for d in logged_days if d.get("result", {}).get("winner") == p2_name)
+            draws = sum(1 for d in logged_days if d.get("result", {}).get("winner") == "Draw")
+
+            latest_winner = logged_days[-1].get("result", {}).get("winner") or (p1_name if p1_total >= p2_total else p2_name)
+            current_leader = p1_name if p1_total >= p2_total else p2_name
+            score_diff = round(abs(p1_total - p2_total), 1)
+
+            data["competition_standings"] = {
+                "today_winner": latest_winner,
+                "current_leader": current_leader,
+                "score_difference": score_diff,
+                "standings": {
+                    p1_name: {
+                        "total_points": round(p1_total, 1),
+                        "average_score": round(p1_total / len(logged_days), 1) if logged_days else 0,
+                        "wins": p1_wins,
+                        "losses": p2_wins,
+                        "draws": draws,
+                    },
+                    p2_name: {
+                        "total_points": round(p2_total, 1),
+                        "average_score": round(p2_total / len(logged_days), 1) if logged_days else 0,
+                        "wins": p2_wins,
+                        "losses": p1_wins,
+                        "draws": draws,
+                    },
+                },
+            }
+
+        return data
+
+    @staticmethod
     def format_winner_today(data: dict[str, Any] = DEFAULT_COMPETITION_DATA) -> str:
         standings = data.get("competition_standings", {})
         daily = data.get("daily_tracker", [])
@@ -195,20 +327,27 @@ class CompetitionTrackerEngine:
             p1_score = 56.3
             p2_score = 23.1
         else:
-            winner = latest_entry["result"]["winner"]
-            diff = latest_entry["result"]["point_diff"]
+            winner = latest_entry["result"]["winner"] or "Abhi"
+            diff = latest_entry["result"]["point_diff"] or 0.0
             latest_date = latest_entry.get("date", "Today")
             p1_score = latest_entry.get("Abhi", {}).get("score", 0)
             p2_score = latest_entry.get("Ajay", {}).get("score", 0)
+
+        p1_pct = latest_entry.get("Abhi", {}).get("completion_pct", "56%") if latest_entry else "56%"
+        p2_pct = latest_entry.get("Ajay", {}).get("completion_pct", "23%") if latest_entry else "23%"
+
+        congrats_line = (
+            f"<i>🔥 Great hustle by {winner}! Keep pushing, {'Ajay' if winner == 'Abhi' else 'Abhi'}! 💪</i>"
+        )
 
         return (
             f"🏆 <b>TODAY'S WINNER: {winner.upper()}</b>\n\n"
             f"📅 <b>Date:</b> {latest_date}\n"
             f"🥇 <b>{winner}</b> won by a margin of <b>+{diff:.1f} pts</b>!\n\n"
-            f"<b>Scores Breakdown:</b>\n"
-            f"• 👤 <b>Abhi:</b> {p1_score} pts ({latest_entry.get('Abhi', {}).get('completion_pct', '56%') if latest_entry else '56%'})\n"
-            f"• 👤 <b>Ajay:</b> {p2_score} pts ({latest_entry.get('Ajay', {}).get('completion_pct', '23%') if latest_entry else '23%'})\n\n"
-            f"<i>Keep grinding, Ajay! Repu Day 1. 💪</i>"
+            f"<b>📊 Scores Breakdown:</b>\n"
+            f"• 👤 <b>Abhi:</b> {p1_score} pts ({p1_pct})\n"
+            f"• 👤 <b>Ajay:</b> {p2_score} pts ({p2_pct})\n\n"
+            f"{congrats_line}"
         )
 
     @staticmethod
@@ -239,8 +378,6 @@ class CompetitionTrackerEngine:
         streaks = data.get("streaks", [])
         lines = [
             "🔥 <b>HABIT & METRIC STREAKS</b>\n",
-            "| <b>Metric</b> | <b>Abhi</b> | <b>Ajay</b> |",
-            "| :--- | :--- | :--- |",
         ]
 
         for s in streaks:

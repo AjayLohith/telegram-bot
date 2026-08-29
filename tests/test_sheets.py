@@ -261,3 +261,22 @@ def test_competition_engine():
     assert "AJAY" in log_text.upper()
 
 
+def test_parse_competition_grid_ajay_wins():
+    from app.sheets.competition import CompetitionTrackerEngine
+
+    raw_grid = [
+        ["Date", "Wake", "Sleep", "Study", "English", "Workout", "Steps", "Junk Food", "Remarks", "Score", "Pct",
+         "Wake", "Sleep", "Study", "English", "Workout", "Steps", "Junk Food", "Remarks", "Score", "Pct", "Winner", "Diff"],
+        ["2026-08-29", "08:00", "23:30", "2", "0", "TRUE", "5000", "FALSE", "", "40.0", "40%",
+         "05:00", "23:00", "8", "1", "TRUE", "12000", "FALSE", "Crushed it!", "95.5", "95%", "Ajay", "55.5"],
+    ]
+
+    updated = CompetitionTrackerEngine.parse_competition_grid(raw_grid)
+    assert updated["competition_standings"]["today_winner"] == "Ajay"
+    assert updated["competition_standings"]["current_leader"] == "Ajay"
+
+    winner_str = CompetitionTrackerEngine.format_winner_today(updated)
+    assert "AJAY" in winner_str
+    assert "+55.5 pts" in winner_str or "55.5" in winner_str
+
+

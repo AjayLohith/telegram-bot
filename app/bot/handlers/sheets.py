@@ -73,49 +73,52 @@ async def sheet_button(message: Message) -> None:
     await message.answer(overview, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
 
 
+async def _safe_edit_or_answer(callback: CallbackQuery, text: str) -> None:
+    if not callback.message:
+        return
+    try:
+        await callback.message.edit_text(text, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+    except Exception:
+        pass
+
+
 @router.callback_query(F.data == "sheet_winner")
 async def cb_sheet_winner(callback: CallbackQuery) -> None:
     await callback.answer("Loading winner data...")
     answer = await sheet_service.answer_question("who is the winner today")
-    if callback.message:
-        await callback.message.answer(answer, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+    await _safe_edit_or_answer(callback, answer)
 
 
 @router.callback_query(F.data == "sheet_leaderboard")
 async def cb_sheet_leaderboard(callback: CallbackQuery) -> None:
     await callback.answer("Loading leaderboard...")
     answer = await sheet_service.answer_question("leaderboard standings")
-    if callback.message:
-        await callback.message.answer(answer, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+    await _safe_edit_or_answer(callback, answer)
 
 
 @router.callback_query(F.data == "sheet_streaks")
 async def cb_sheet_streaks(callback: CallbackQuery) -> None:
     await callback.answer("Loading habit streaks...")
     answer = await sheet_service.answer_question("streaks")
-    if callback.message:
-        await callback.message.answer(answer, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+    await _safe_edit_or_answer(callback, answer)
 
 
 @router.callback_query(F.data == "sheet_daily")
 async def cb_sheet_daily(callback: CallbackQuery) -> None:
     await callback.answer("Loading daily log...")
     answer = await sheet_service.answer_question("daily log")
-    if callback.message:
-        await callback.message.answer(answer, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+    await _safe_edit_or_answer(callback, answer)
 
 
 @router.callback_query(F.data == "sheet_summary")
 async def cb_sheet_summary(callback: CallbackQuery) -> None:
     await callback.answer("Loading overview...")
     overview = await sheet_service.get_overview()
-    if callback.message:
-        await callback.message.answer(overview, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+    await _safe_edit_or_answer(callback, overview)
 
 
 @router.callback_query(F.data == "sheet_refresh")
 async def cb_sheet_refresh(callback: CallbackQuery) -> None:
-    await callback.answer("Refreshing data...")
+    await callback.answer("Refreshing live data...")
     res = await sheet_service.refresh()
-    if callback.message:
-        await callback.message.answer(res, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+    await _safe_edit_or_answer(callback, res)
