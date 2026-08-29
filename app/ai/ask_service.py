@@ -3,18 +3,29 @@ import httpx
 from app.ai.http_providers import configured_providers
 from app.ai.providers import AIRouter
 from app.core.config import settings
+from app.sheets.competition import (
+    DEFAULT_COMPETITION_DATA,
+    CompetitionTrackerEngine,
+)
 
 logger = logging.getLogger(__name__)
 
 
 async def ask_fast_answer(question: str) -> str:
-    """Answers a user's question in a crisp, 1-liner format using multi-LLM failover
+    """Answers a user's question accurately using multi-LLM failover
 
-    (Groq -> Gemini -> Mistral -> OpenAI).
+    with live Competition Tracker memory synchronization.
     """
     cleaned_q = question.strip()
     if not cleaned_q:
-        return "Please provide a question to ask. Example: <code>/ask What is quantum computing?</code>"
+        return "Please provide a question to ask. Example: <code>/ask Who is the winner today?</code>"
+
+    # Fast deterministic shortcuts for direct competition questions
+    q_low = cleaned_q.lower()
+    if any(w in q_low for w in ("who is the winner today", "who won today", "today winner", "winner today")):
+        return CompetitionTrackerEngine.format_winner_today()
+    if any(w in q_low for w in ("leaderboard", "who is leading", "competition standings")):
+        return CompetitionTrackerEngine.format_leaderboard()
 
     providers = configured_providers(settings)
     if not providers:
@@ -27,18 +38,24 @@ async def ask_fast_answer(question: str) -> str:
 
     router = AIRouter(providers, {"quick_ask": preference})
 
-    prompt = (
-        f"You are J.A.R.V.I.S., the brilliant, polite, and ultra-competent AI assistant from Marvel's Iron Man. "
-        f"Answer the user's question accurately in ONE single crisp sentence (under 25 words). "
-        f"Be helpful, direct, and sophisticated.\n"
-        f"Question: {cleaned_q}"
-    )
+    # Build compact background context (~100 tokens)
+    comp_context = CompetitionTrackerEngine.build_compact_competition_context()
 
+    prompt = (
+        f"You are J.A.R.V.I.S., the brilliant, polite, and motivational AI assistant for Ajay & Abhi.\n\n"
+        f"--- LIVE DATA MEMORY ---\n"
+        f"{comp_context}\n\n"
+        f"--- USER QUESTION ---\n"
+        f"{cleaned_q}\n\n"
+        f"Instructions:\n"
+        f"- If the question relates to the daily competition, scores, winners, study, workout, steps, or standings, use the LIVE DATA MEMORY above as ground truth.\n"
+        f"- Give a crisp, polite, and generous 1 to 2 sentence answer.\n"
+        f"- Never fabricate numbers or metrics."
+    )
 
     try:
         response = await router.complete("quick_ask", prompt)
-        answer = response.strip().splitlines()[0].strip()
-        return answer
+        return response.strip()
     except Exception as err:
         logger.warning("Quick ask failed across all providers: %s", err)
         return "⚡ I couldn't reach the AI providers right now. Please check your API keys or try again in a moment."

@@ -233,10 +233,10 @@ async def test_telegram_sheet_handlers():
     mock_cb = MagicMock()
     mock_cb.answer = AsyncMock()
     mock_cb.message = MagicMock()
-    mock_cb.message.answer = AsyncMock()
+    mock_cb.message.edit_text = AsyncMock()
     await cb_sheet_winner(mock_cb)
     assert mock_cb.answer.called
-    assert mock_cb.message.answer.called
+    assert mock_cb.message.edit_text.called
 
 
 def test_competition_engine():

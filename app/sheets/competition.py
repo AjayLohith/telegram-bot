@@ -177,8 +177,20 @@ class CompetitionTrackerEngine:
     """Specialized engine for 2-Person Daily Competition Tracker."""
 
     @staticmethod
+    def clean_date_str(date_val: Any) -> str:
+        """Cleans ISO timestamp strings like 2026-08-29T08:00:00.000Z to 2026-08-29."""
+        if not date_val:
+            return "Today"
+        s = str(date_val).strip()
+        if "T" in s:
+            s = s.split("T")[0]
+        elif " " in s:
+            s = s.split(" ")[0]
+        return s
+
+    @staticmethod
     def parse_competition_grid(raw_values: list[list[str]], existing_data: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Dynamically parses raw 2D grid from Google Sheet into structured competition data."""
+        """Dynamically parses raw 2D grid from Google Sheet into structured competition data, filtering out empty template rows."""
         data = dict(existing_data or DEFAULT_COMPETITION_DATA)
         if not raw_values or len(raw_values) < 2:
             return data
@@ -191,7 +203,7 @@ class CompetitionTrackerEngine:
         for row in raw_values:
             if not row or not row[0].strip():
                 continue
-            first_cell = row[0].strip()
+            first_cell = CompetitionTrackerEngine.clean_date_str(row[0])
             # Check if first cell looks like a date (e.g. 2026-..., 28/..., 29-...)
             if not any(sep in first_cell for sep in ("-", "/")) and not first_cell.startswith("20"):
                 continue
@@ -219,45 +231,78 @@ class CompetitionTrackerEngine:
                 def safe_bool(val: Any) -> bool:
                     return str(val).strip().lower() in ("true", "yes", "y", "1")
 
+                p1_wake = row[1].strip() if len(row) > 1 and row[1].strip() else None
+                p1_sleep = row[2].strip() if len(row) > 2 and row[2].strip() else None
+                p1_study = safe_float(row[3] if len(row) > 3 else 0)
+                p1_english = safe_float(row[4] if len(row) > 4 else 0)
+                p1_workout = safe_bool(row[5] if len(row) > 5 else False)
+                p1_steps = safe_int(row[6] if len(row) > 6 else 0)
+                p1_junk = safe_bool(row[7] if len(row) > 7 else False)
+                p1_remarks = row[8].strip() if len(row) > 8 and row[8].strip() else None
+                p1_score = safe_float(row[9] if len(row) > 9 else 0)
+                p1_pct = f"{int(safe_float(row[10] if len(row) > 10 else row[9] if len(row) > 9 else 0))}%"
+
+                p2_wake = row[11].strip() if len(row) > 11 and row[11].strip() else None
+                p2_sleep = row[12].strip() if len(row) > 12 and row[12].strip() else None
+                p2_study = safe_float(row[13] if len(row) > 13 else 0)
+                p2_english = safe_float(row[14] if len(row) > 14 else 0)
+                p2_workout = safe_bool(row[15] if len(row) > 15 else False)
+                p2_steps = safe_int(row[16] if len(row) > 16 else 0)
+                p2_junk = safe_bool(row[17] if len(row) > 17 else False)
+                p2_remarks = row[18].strip() if len(row) > 18 and row[18].strip() else None
+                p2_score = safe_float(row[19] if len(row) > 19 else 0)
+                p2_pct = f"{int(safe_float(row[20] if len(row) > 20 else row[19] if len(row) > 19 else 0))}%"
+
+                # Check if this row is an empty future template row
+                has_p1_data = bool(p1_wake or p1_sleep or p1_study > 0 or p1_english > 0 or p1_workout or p1_steps > 0 or p1_remarks or p1_score > 0)
+                has_p2_data = bool(p2_wake or p2_sleep or p2_study > 0 or p2_english > 0 or p2_workout or p2_steps > 0 or p2_remarks or p2_score > 0)
+
+                # Skip completely blank/future template rows
+                if not has_p1_data and not has_p2_data:
+                    continue
+
                 p1_entry = {
-                    "wake_time": row[1].strip() if len(row) > 1 and row[1].strip() else None,
-                    "sleep_time": row[2].strip() if len(row) > 2 and row[2].strip() else None,
-                    "study_hrs": safe_float(row[3] if len(row) > 3 else 0),
-                    "english_hrs": safe_float(row[4] if len(row) > 4 else 0),
-                    "workout": safe_bool(row[5] if len(row) > 5 else False),
-                    "steps": safe_int(row[6] if len(row) > 6 else 0),
-                    "junk_food": safe_bool(row[7] if len(row) > 7 else False),
-                    "remarks": row[8].strip() if len(row) > 8 and row[8].strip() else None,
-                    "score": safe_float(row[9] if len(row) > 9 else 0),
-                    "completion_pct": f"{int(safe_float(row[10] if len(row) > 10 else row[9] if len(row) > 9 else 0))}%",
+                    "wake_time": p1_wake,
+                    "sleep_time": p1_sleep,
+                    "study_hrs": p1_study,
+                    "english_hrs": p1_english,
+                    "workout": p1_workout,
+                    "steps": p1_steps,
+                    "junk_food": p1_junk,
+                    "remarks": p1_remarks,
+                    "score": p1_score,
+                    "completion_pct": p1_pct,
                 }
 
                 p2_entry = {
-                    "wake_time": row[11].strip() if len(row) > 11 and row[11].strip() else None,
-                    "sleep_time": row[12].strip() if len(row) > 12 and row[12].strip() else None,
-                    "study_hrs": safe_float(row[13] if len(row) > 13 else 0),
-                    "english_hrs": safe_float(row[14] if len(row) > 14 else 0),
-                    "workout": safe_bool(row[15] if len(row) > 15 else False),
-                    "steps": safe_int(row[16] if len(row) > 16 else 0),
-                    "junk_food": safe_bool(row[17] if len(row) > 17 else False),
-                    "remarks": row[18].strip() if len(row) > 18 and row[18].strip() else None,
-                    "score": safe_float(row[19] if len(row) > 19 else 0),
-                    "completion_pct": f"{int(safe_float(row[20] if len(row) > 20 else row[19] if len(row) > 19 else 0))}%",
+                    "wake_time": p2_wake,
+                    "sleep_time": p2_sleep,
+                    "study_hrs": p2_study,
+                    "english_hrs": p2_english,
+                    "workout": p2_workout,
+                    "steps": p2_steps,
+                    "junk_food": p2_junk,
+                    "remarks": p2_remarks,
+                    "score": p2_score,
+                    "completion_pct": p2_pct,
                 }
 
                 # Determine winner from scores or result column
                 winner = row[21].strip() if len(row) > 21 and row[21].strip() else None
                 diff = safe_float(row[22] if len(row) > 22 else 0)
 
-                if not winner:
-                    if p1_entry["score"] > p2_entry["score"]:
+                if not winner or winner.lower() in ("none", "null", ""):
+                    if p1_score > p2_score:
                         winner = p1_name
-                        diff = round(p1_entry["score"] - p2_entry["score"], 1)
-                    elif p2_entry["score"] > p1_entry["score"]:
+                        diff = round(p1_score - p2_score, 1)
+                    elif p2_score > p1_score:
                         winner = p2_name
-                        diff = round(p2_entry["score"] - p1_entry["score"], 1)
-                    elif p1_entry["score"] > 0:
+                        diff = round(p2_score - p1_score, 1)
+                    elif p1_score > 0:
                         winner = "Draw"
+                        diff = 0.0
+                    else:
+                        winner = None
                         diff = 0.0
 
                 logged_days.append({
@@ -273,14 +318,16 @@ class CompetitionTrackerEngine:
         if logged_days:
             data["daily_tracker"] = logged_days
 
-            # Recalculate standings
+            # Recalculate standings from logged days
             p1_total = sum(d.get(p1_name, {}).get("score", 0) for d in logged_days)
             p2_total = sum(d.get(p2_name, {}).get("score", 0) for d in logged_days)
             p1_wins = sum(1 for d in logged_days if d.get("result", {}).get("winner") == p1_name)
             p2_wins = sum(1 for d in logged_days if d.get("result", {}).get("winner") == p2_name)
             draws = sum(1 for d in logged_days if d.get("result", {}).get("winner") == "Draw")
 
-            latest_winner = logged_days[-1].get("result", {}).get("winner") or (p1_name if p1_total >= p2_total else p2_name)
+            # Get the latest day that actually had a winner/score
+            latest_day_with_result = next((d for d in reversed(logged_days) if d.get("result", {}).get("winner")), logged_days[-1])
+            latest_winner = latest_day_with_result.get("result", {}).get("winner") or (p1_name if p1_total >= p2_total else p2_name)
             current_leader = p1_name if p1_total >= p2_total else p2_name
             score_diff = round(abs(p1_total - p2_total), 1)
 
@@ -309,16 +356,20 @@ class CompetitionTrackerEngine:
         return data
 
     @staticmethod
+    def get_latest_logged_entry(data: dict[str, Any] = DEFAULT_COMPETITION_DATA) -> dict[str, Any] | None:
+        """Finds the most recent entry with actual scores or logged activities."""
+        daily = data.get("daily_tracker", [])
+        for day in reversed(daily):
+            abhi_score = day.get("Abhi", {}).get("score", 0) or 0
+            ajay_score = day.get("Ajay", {}).get("score", 0) or 0
+            if abhi_score > 0 or ajay_score > 0 or day.get("result", {}).get("winner"):
+                return day
+        return daily[-1] if daily else None
+
+    @staticmethod
     def format_winner_today(data: dict[str, Any] = DEFAULT_COMPETITION_DATA) -> str:
         standings = data.get("competition_standings", {})
-        daily = data.get("daily_tracker", [])
-        
-        # Get latest day with result
-        latest_entry = None
-        for day in reversed(daily):
-            if day.get("result", {}).get("winner"):
-                latest_entry = day
-                break
+        latest_entry = CompetitionTrackerEngine.get_latest_logged_entry(data)
         
         if not latest_entry:
             winner = standings.get("today_winner", "Abhi")
@@ -326,15 +377,16 @@ class CompetitionTrackerEngine:
             latest_date = "Today"
             p1_score = 56.3
             p2_score = 23.1
+            p1_pct = "56%"
+            p2_pct = "23%"
         else:
-            winner = latest_entry["result"]["winner"] or "Abhi"
-            diff = latest_entry["result"]["point_diff"] or 0.0
-            latest_date = latest_entry.get("date", "Today")
+            winner = latest_entry.get("result", {}).get("winner") or standings.get("today_winner", "Abhi")
+            diff = latest_entry.get("result", {}).get("point_diff") or standings.get("score_difference", 0.0)
+            latest_date = CompetitionTrackerEngine.clean_date_str(latest_entry.get("date", "Today"))
             p1_score = latest_entry.get("Abhi", {}).get("score", 0)
             p2_score = latest_entry.get("Ajay", {}).get("score", 0)
-
-        p1_pct = latest_entry.get("Abhi", {}).get("completion_pct", "56%") if latest_entry else "56%"
-        p2_pct = latest_entry.get("Ajay", {}).get("completion_pct", "23%") if latest_entry else "23%"
+            p1_pct = latest_entry.get("Abhi", {}).get("completion_pct", "0%")
+            p2_pct = latest_entry.get("Ajay", {}).get("completion_pct", "0%")
 
         congrats_line = (
             f"<i>🔥 Great hustle by {winner}! Keep pushing, {'Ajay' if winner == 'Abhi' else 'Abhi'}! 💪</i>"
@@ -395,17 +447,18 @@ class CompetitionTrackerEngine:
         
         entry = None
         if date_str:
+            target_date = CompetitionTrackerEngine.clean_date_str(date_str)
             for day in daily:
-                if day.get("date") == date_str:
+                if CompetitionTrackerEngine.clean_date_str(day.get("date")) == target_date:
                     entry = day
                     break
-        if not entry and daily:
-            entry = daily[-1]
+        if not entry:
+            entry = CompetitionTrackerEngine.get_latest_logged_entry(data)
 
         if not entry:
             return "No logged tracker entries available."
 
-        d_val = entry.get("date", "Recent")
+        d_val = CompetitionTrackerEngine.clean_date_str(entry.get("date", "Recent"))
         abhi = entry.get("Abhi", {})
         ajay = entry.get("Ajay", {})
         res = entry.get("result", {})
@@ -425,4 +478,29 @@ class CompetitionTrackerEngine:
             f"• 🍔 No Junk Food: {'✅' if not ajay.get('junk_food') else '❌'}\n"
             f"• 📝 Remarks: <i>{ajay.get('remarks') or 'None'}</i>\n\n"
             f"🏆 <b>Result:</b> {res.get('winner', 'Draw')} (+{res.get('point_diff', 0)} pts)"
+        )
+
+    @staticmethod
+    def build_compact_competition_context(data: dict[str, Any] = DEFAULT_COMPETITION_DATA) -> str:
+        """Returns a minimal, highly accurate context summary (~120 tokens) for LLM prompts."""
+        standings = data.get("competition_standings", {})
+        leader = standings.get("current_leader", "Abhi")
+        diff = standings.get("score_difference", 33.2)
+        st_abhi = standings.get("standings", {}).get("Abhi", {})
+        st_ajay = standings.get("standings", {}).get("Ajay", {})
+
+        latest = CompetitionTrackerEngine.get_latest_logged_entry(data) or {}
+        d_val = CompetitionTrackerEngine.clean_date_str(latest.get("date", "2026-08-29"))
+        abhi = latest.get("Abhi", {})
+        ajay = latest.get("Ajay", {})
+        winner = latest.get("result", {}).get("winner") or standings.get("today_winner", "Abhi")
+        win_diff = latest.get("result", {}).get("point_diff") or diff
+
+        return (
+            f"[COMPETITION DATA CONTEXT (Abhi vs Ajay)]:\n"
+            f"- Current Standings: Leader = {leader} (+{diff} pts). Abhi: {st_abhi.get('total_points', 0)} pts ({st_abhi.get('wins', 0)}W), Ajay: {st_ajay.get('total_points', 0)} pts ({st_ajay.get('wins', 0)}W).\n"
+            f"- Latest Logged Entry ({d_val}):\n"
+            f"  * Abhi: Score {abhi.get('score', 0)}/100 ({abhi.get('completion_pct', '0%')}) | Wake: {abhi.get('wake_time')} | Study: {abhi.get('study_hrs', 0)}h | English: {abhi.get('english_hrs', 0)}h | Workout: {'Yes' if abhi.get('workout') else 'No'} | Steps: {abhi.get('steps', 0)} | Remarks: '{abhi.get('remarks') or 'None'}'\n"
+            f"  * Ajay: Score {ajay.get('score', 0)}/100 ({ajay.get('completion_pct', '0%')}) | Wake: {ajay.get('wake_time')} | Study: {ajay.get('study_hrs', 0)}h | English: {ajay.get('english_hrs', 0)}h | Workout: {'Yes' if ajay.get('workout') else 'No'} | Steps: {ajay.get('steps', 0)} | Remarks: '{ajay.get('remarks') or 'None'}'\n"
+            f"  * Daily Result: Winner = {winner} (+{win_diff} pts)\n"
         )
