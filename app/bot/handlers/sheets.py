@@ -15,12 +15,15 @@ sheet_service = SheetAIService()
 def get_sheets_inline_keyboard() -> InlineKeyboardMarkup:
     buttons = [
         [
-            InlineKeyboardButton(text="📊 Overview / Summary", callback_data="sheet_summary"),
-            InlineKeyboardButton(text="🔄 Refresh Data", callback_data="sheet_refresh"),
+            InlineKeyboardButton(text="🏆 Winner Today", callback_data="sheet_winner"),
+            InlineKeyboardButton(text="👑 Leaderboard", callback_data="sheet_leaderboard"),
         ],
         [
-            InlineKeyboardButton(text="🏆 Top Products / Items", callback_data="sheet_top"),
-            InlineKeyboardButton(text="📈 Total Sales / Metrics", callback_data="sheet_totals"),
+            InlineKeyboardButton(text="🔥 Habit Streaks", callback_data="sheet_streaks"),
+            InlineKeyboardButton(text="📅 Daily Log", callback_data="sheet_daily"),
+        ],
+        [
+            InlineKeyboardButton(text="🔄 Refresh Data", callback_data="sheet_refresh"),
         ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -39,19 +42,9 @@ async def sheet_command(message: Message) -> None:
             query = raw[len(prefix):].strip()
             break
 
-    # If no spreadsheet configured
-    if not settings.google_spreadsheet_id:
-        await message.answer(
-            "📊 <b>Google Sheets Assistant</b>\n\n"
-            "⚠️ No Google Spreadsheet ID is configured in the environment.\n"
-            "To connect your sheet, add <code>GOOGLE_SPREADSHEET_ID=&lt;your-sheet-id&gt;</code> to your <code>.env</code> file.",
-            parse_mode="HTML",
-        )
-        return
-
     # If empty command, provide overview + interactive buttons
     if not query:
-        status_msg = await message.answer("🔄 Connecting to Google Sheet...", parse_mode="HTML")
+        status_msg = await message.answer("🔄 Connecting to Competition Tracker...", parse_mode="HTML")
         overview = await sheet_service.get_overview()
         try:
             await status_msg.delete()
@@ -60,7 +53,7 @@ async def sheet_command(message: Message) -> None:
         await message.answer(overview, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
         return
 
-    status_msg = await message.answer("🔍 Analyzing Google Sheet data...", parse_mode="HTML")
+    status_msg = await message.answer("🔍 Analyzing competition data...", parse_mode="HTML")
     answer = await sheet_service.answer_question(query)
     try:
         await status_msg.delete()
@@ -71,16 +64,7 @@ async def sheet_command(message: Message) -> None:
 
 @router.message(F.text == "📊 Sheet Data")
 async def sheet_button(message: Message) -> None:
-    if not settings.google_spreadsheet_id:
-        await message.answer(
-            "📊 <b>Google Sheets Assistant</b>\n\n"
-            "⚠️ No Google Spreadsheet is configured yet in <code>.env</code>.\n"
-            "Please configure <code>GOOGLE_SPREADSHEET_ID</code>.",
-            parse_mode="HTML",
-        )
-        return
-
-    status_msg = await message.answer("🔄 Loading Google Sheet intelligence...", parse_mode="HTML")
+    status_msg = await message.answer("🔄 Loading Competition Intelligence...", parse_mode="HTML")
     overview = await sheet_service.get_overview()
     try:
         await status_msg.delete()
@@ -89,9 +73,41 @@ async def sheet_button(message: Message) -> None:
     await message.answer(overview, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
 
 
+@router.callback_query(F.data == "sheet_winner")
+async def cb_sheet_winner(callback: CallbackQuery) -> None:
+    await callback.answer("Loading winner data...")
+    answer = await sheet_service.answer_question("who is the winner today")
+    if callback.message:
+        await callback.message.answer(answer, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "sheet_leaderboard")
+async def cb_sheet_leaderboard(callback: CallbackQuery) -> None:
+    await callback.answer("Loading leaderboard...")
+    answer = await sheet_service.answer_question("leaderboard standings")
+    if callback.message:
+        await callback.message.answer(answer, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "sheet_streaks")
+async def cb_sheet_streaks(callback: CallbackQuery) -> None:
+    await callback.answer("Loading habit streaks...")
+    answer = await sheet_service.answer_question("streaks")
+    if callback.message:
+        await callback.message.answer(answer, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+
+
+@router.callback_query(F.data == "sheet_daily")
+async def cb_sheet_daily(callback: CallbackQuery) -> None:
+    await callback.answer("Loading daily log...")
+    answer = await sheet_service.answer_question("daily log")
+    if callback.message:
+        await callback.message.answer(answer, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
+
+
 @router.callback_query(F.data == "sheet_summary")
 async def cb_sheet_summary(callback: CallbackQuery) -> None:
-    await callback.answer("Loading sheet overview...")
+    await callback.answer("Loading overview...")
     overview = await sheet_service.get_overview()
     if callback.message:
         await callback.message.answer(overview, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
@@ -103,19 +119,3 @@ async def cb_sheet_refresh(callback: CallbackQuery) -> None:
     res = await sheet_service.refresh()
     if callback.message:
         await callback.message.answer(res, reply_markup=get_sheets_inline_keyboard(), parse_mode="HTML")
-
-
-@router.callback_query(F.data == "sheet_top")
-async def cb_sheet_top(callback: CallbackQuery) -> None:
-    await callback.answer("Computing top items...")
-    answer = await sheet_service.answer_question("Show top 5 entries by highest metrics")
-    if callback.message:
-        await callback.message.answer(answer, parse_mode="HTML")
-
-
-@router.callback_query(F.data == "sheet_totals")
-async def cb_sheet_totals(callback: CallbackQuery) -> None:
-    await callback.answer("Calculating totals...")
-    answer = await sheet_service.answer_question("What are the total sales and key metrics?")
-    if callback.message:
-        await callback.message.answer(answer, parse_mode="HTML")

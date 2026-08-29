@@ -157,9 +157,13 @@ async def default_message_handler(message: Message) -> None:
         )
         return
 
-    # If spreadsheet is configured and query contains data/sheet query triggers
-    sheet_triggers = ("sheet", "sheets", "spreadsheet", "sales", "revenue", "orders", "dataset", "top products")
-    if settings.google_spreadsheet_id and any(t in text.lower() for t in sheet_triggers):
+    # If spreadsheet or competition query is asked
+    sheet_triggers = (
+        "sheet", "sheets", "winner", "who won", "competition", "leaderboard",
+        "standings", "score", "scores", "abhi", "ajay", "streak", "streaks",
+        "study", "workout", "steps", "wake", "sleep", "junk food"
+    )
+    if any(t in text.lower() for t in sheet_triggers):
         answer = await sheets.sheet_service.answer_question(text)
         await message.answer(answer, reply_markup=get_main_reply_keyboard(), parse_mode="HTML")
         return

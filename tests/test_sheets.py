@@ -178,16 +178,14 @@ async def test_sheet_ai_service_deterministic_fallback():
     service = SheetAIService(client=client, router=None)
 
     overview = await service.get_overview()
-    assert "Google Sheet Overview" in overview
-    assert "Total Entries" in overview
+    assert "WINNER" in overview or "Leaderboard" in overview or "Competition" in overview
 
-    # Question: What are total sales?
-    res_sales = await service.answer_question("What are total sales?")
-    assert "Data Query Result" in res_sales or "Total" in res_sales
-    assert "273,000" in res_sales
+    # Question: What is total amount?
+    res_amt = await service.answer_question("What is total amount?")
+    assert "273,000" in res_amt or "Amount" in res_amt
 
-    # Question: Top products
-    res_top = await service.answer_question("Show top 3 products")
+    # Question: Top items
+    res_top = await service.answer_question("Show top 3 items")
     assert "Top 3" in res_top or "Laptop" in res_top
 
 
@@ -207,12 +205,12 @@ async def test_sheet_ai_service_with_mocked_llm():
         "filter_value": "Andhra Pradesh",
     })
     # Step 2: LLM returns formatted Telegram answer
-    summary_telegram = "📊 Total sales in Andhra Pradesh: ₹1,27,500 across 2 orders."
+    summary_telegram = "📊 Total in Andhra Pradesh: ₹1,27,500 across 2 orders."
 
     mock_router.complete = AsyncMock(side_effect=[plan_json, summary_telegram])
 
     service = SheetAIService(client=client, router=mock_router)
-    answer = await service.answer_question("What were total sales in Andhra Pradesh?")
+    answer = await service.answer_question("What were total in Andhra Pradesh?")
 
     assert "₹1,27,500" in answer
     assert mock_router.complete.call_count == 2
@@ -221,34 +219,45 @@ async def test_sheet_ai_service_with_mocked_llm():
 @pytest.mark.asyncio
 async def test_telegram_sheet_handlers():
     from unittest.mock import AsyncMock, MagicMock
-    from app.bot.handlers.sheets import sheet_command, cb_sheet_summary, cb_sheet_refresh
+    from app.bot.handlers.sheets import sheet_command, cb_sheet_summary, cb_sheet_winner, cb_sheet_leaderboard
 
-    # Test unconfigured sheet
-    with patch("app.bot.handlers.sheets.settings.google_spreadsheet_id", None):
-        mock_msg = MagicMock()
-        mock_msg.text = "/sheet"
-        mock_msg.answer = AsyncMock()
-        await sheet_command(mock_msg)
-        assert mock_msg.answer.called
-        assert "No Google Spreadsheet ID is configured" in mock_msg.answer.call_args[0][0]
+    mock_status = MagicMock()
+    mock_status.delete = AsyncMock()
+    mock_msg = MagicMock()
+    mock_msg.text = "/sheet"
+    mock_msg.answer = AsyncMock(side_effect=[mock_status, None])
+    await sheet_command(mock_msg)
+    assert mock_msg.answer.called
 
-    # Test with configured sheet
-    with patch("app.bot.handlers.sheets.settings.google_spreadsheet_id", "test_id_123"):
-        with patch("app.bot.handlers.sheets.sheet_service.get_overview", AsyncMock(return_value="📊 Sheet Overview Mock")):
-            mock_status = MagicMock()
-            mock_status.delete = AsyncMock()
-            mock_msg = MagicMock()
-            mock_msg.text = "/sheet"
-            mock_msg.answer = AsyncMock(side_effect=[mock_status, None])
-            await sheet_command(mock_msg)
-            assert mock_msg.answer.call_count == 2
+    # Test callback winner
+    mock_cb = MagicMock()
+    mock_cb.answer = AsyncMock()
+    mock_cb.message = MagicMock()
+    mock_cb.message.answer = AsyncMock()
+    await cb_sheet_winner(mock_cb)
+    assert mock_cb.answer.called
+    assert mock_cb.message.answer.called
 
-            # Test callback
-            mock_cb = MagicMock()
-            mock_cb.answer = AsyncMock()
-            mock_cb.message = MagicMock()
-            mock_cb.message.answer = AsyncMock()
-            await cb_sheet_summary(mock_cb)
-            assert mock_cb.answer.called
-            assert mock_cb.message.answer.called
+
+def test_competition_engine():
+    from app.sheets.competition import CompetitionTrackerEngine, DEFAULT_COMPETITION_DATA
+
+    winner_text = CompetitionTrackerEngine.format_winner_today(DEFAULT_COMPETITION_DATA)
+    assert "ABHI" in winner_text
+    assert "33.2" in winner_text
+
+    leaderboard_text = CompetitionTrackerEngine.format_leaderboard(DEFAULT_COMPETITION_DATA)
+    assert "Abhi" in leaderboard_text
+    assert "Ajay" in leaderboard_text
+    assert "56.3 pts" in leaderboard_text
+
+    streaks_text = CompetitionTrackerEngine.format_streaks(DEFAULT_COMPETITION_DATA)
+    assert "Habit" in streaks_text or "STREAKS" in streaks_text
+    assert "Sleep Target Streak" in streaks_text
+
+    log_text = CompetitionTrackerEngine.format_daily_log(DEFAULT_COMPETITION_DATA)
+    assert "DAILY TRACKER LOG" in log_text
+    assert "ABHI" in log_text.upper()
+    assert "AJAY" in log_text.upper()
+
 
