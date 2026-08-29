@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     mistral_model: str = "mistral-small-latest"
     gemini_api_key: str | None = None
     news_api_key: str | None = None
+    turso_auth_token: str | None = None
     # Google Sheets Integration
     google_spreadsheet_id: str | None = "1Se-MgRJ3rKQ5ToqMTKxHJ0q7EJuoH_iogS0zKul8OCg"
     google_sheet_name: str | None = None
