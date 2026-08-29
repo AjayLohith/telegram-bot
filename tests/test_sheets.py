@@ -280,3 +280,29 @@ def test_parse_competition_grid_ajay_wins():
     assert "+55.5 pts" in winner_str or "55.5" in winner_str
 
 
+@pytest.mark.asyncio
+async def test_natural_language_writer_parsing():
+    from app.sheets.writer import parse_log_text_to_dict, save_competition_entry
+
+    text = "log abhi wake 7 sleep 23 study 7 english 2 workout yes steps 10321 remarks nrml day"
+    entry = parse_log_text_to_dict(text)
+
+    assert entry["player"] == "Abhi"
+    assert entry["wake_time"] == "07:00"
+    assert entry["sleep_time"] == "23:00"
+    assert entry["study_hrs"] == 7.0
+    assert entry["english_hrs"] == 2.0
+    assert entry["workout"] is True
+    assert entry["steps"] == 10321
+    assert entry["junk_food"] is False
+    assert entry["remarks"] == "nrml day"
+    assert entry["score"] > 80.0
+
+    # Save entry
+    success, reply_msg = await save_competition_entry(entry)
+    assert success is True
+    assert "DATA LOGGED SUCCESSFULLY" in reply_msg
+    assert "ABHI'S SCORECARD" in reply_msg
+
+
+

@@ -122,3 +122,50 @@ async def cb_sheet_refresh(callback: CallbackQuery) -> None:
     await callback.answer("Refreshing live data...")
     res = await sheet_service.refresh()
     await _safe_edit_or_answer(callback, res)
+
+
+@router.message(Command("log"))
+@router.message(Command("write"))
+@router.message(F.text.lower().startswith(("/log", "/write", "log ", "write ", "abhi wake ", "ajay wake ")))
+async def log_entry_command(message: Message) -> None:
+    """Natural language log command to parse and push stats directly to Google Sheet and in-memory engine.
+
+    Example:
+    /log abhi wake 7 sleep 23 study 7 english 2 workout yes steps 10321 remarks nrml day
+    """
+    raw = message.text or ""
+    # Strip command prefix
+    for pfx in ("/log", "/write", "log ", "write "):
+        if raw.lower().startswith(pfx):
+            raw = raw[len(pfx):].strip()
+            break
+
+    if not raw:
+        await message.answer(
+            "📝 <b>LOG DAILY STATS</b>\n\n"
+            "Provide your daily stats in natural text. Example:\n"
+            "<code>/log abhi wake 7 sleep 23 study 7 english 2 workout yes steps 10321 remarks nrml day</code>\n"
+            "or\n"
+            "<code>/log ajay wake 6:30 sleep 23:30 study 8 english 1 workout yes steps 11000 no junk remarks crushed it</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    from app.sheets.writer import parse_log_text_to_dict, save_competition_entry
+
+    status_msg = await message.answer("⚙️ Parsing and logging data...", parse_mode="HTML")
+    try:
+        entry = parse_log_text_to_dict(raw)
+        success, reply_msg = await save_competition_entry(entry)
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+        await message.answer(reply_msg, parse_mode="HTML")
+    except Exception as err:
+        logger.exception("Failed to log entry: %s", err)
+        try:
+            await status_msg.delete()
+        except Exception:
+            pass
+        await message.answer(f"⚠️ Could not log stats: {err}", parse_mode="HTML")

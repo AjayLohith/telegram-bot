@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
+
+from app.core.config import settings
 
 
 DEFAULT_COMPETITION_DATA = {
@@ -189,16 +192,30 @@ class CompetitionTrackerEngine:
         return s
 
     @staticmethod
-    def clean_time_str(time_val: Any) -> str:
-        """Cleans timestamps to standard 24-hour format HH:MM (e.g. 16:00, 07:30, 23:30)."""
+    def clean_time_str(time_val: Any, tz_str: str = "Asia/Kolkata") -> str:
+        """Cleans timestamps to standard 24-hour format HH:MM (e.g. 08:00, 23:30), converting UTC ISO if present."""
         if not time_val:
             return "N/A"
         s = str(time_val).strip()
         if not s or s.lower() in ("none", "null", "n/a", "pending"):
             return "N/A"
-        if "t" in s.lower():
-            s = s.split("T" if "T" in s else "t")[1].replace("Z", "").replace("z", "").split(".")[0].strip()
         
+        # If it's an ISO timestamp with Date part (e.g. 1899-12-30T02:30:00.000Z)
+        if "T" in s or "t" in s:
+            try:
+                # If ends with Z, parse as UTC and convert to target timezone (IST)
+                if s.endswith("Z") or s.endswith("z"):
+                    dt_utc = datetime.fromisoformat(s.replace("Z", "+00:00").replace("z", "+00:00"))
+                    dt_local = dt_utc.astimezone(ZoneInfo(tz_str))
+                    return dt_local.strftime("%H:%M")
+                else:
+                    time_part = s.split("T" if "T" in s else "t")[1].split(".")[0].strip()
+                    parts = time_part.split(":")
+                    if len(parts) >= 2:
+                        return f"{int(parts[0]):02d}:{int(parts[1]):02d}"
+            except Exception:
+                pass
+
         # Check for 12-hour AM/PM string (e.g. "4:00 PM", "07:30 AM")
         s_upper = s.upper()
         if "AM" in s_upper or "PM" in s_upper:
@@ -237,6 +254,7 @@ class CompetitionTrackerEngine:
         logged_days = []
         p1_name = data.get("settings", {}).get("players", {}).get("person_1", "Abhi")
         p2_name = data.get("settings", {}).get("players", {}).get("person_2", "Ajay")
+        tz_str = settings.timezone or "Asia/Kolkata"
 
         # Scan for tracker rows
         for row in raw_values:
@@ -270,8 +288,8 @@ class CompetitionTrackerEngine:
                 def safe_bool(val: Any) -> bool:
                     return str(val).strip().lower() in ("true", "yes", "y", "1")
 
-                p1_wake = CompetitionTrackerEngine.clean_time_str(row[1] if len(row) > 1 else None)
-                p1_sleep = CompetitionTrackerEngine.clean_time_str(row[2] if len(row) > 2 else None)
+                p1_wake = CompetitionTrackerEngine.clean_time_str(row[1] if len(row) > 1 else None, tz_str)
+                p1_sleep = CompetitionTrackerEngine.clean_time_str(row[2] if len(row) > 2 else None, tz_str)
                 p1_study = safe_float(row[3] if len(row) > 3 else 0)
                 p1_english = safe_float(row[4] if len(row) > 4 else 0)
                 p1_workout = safe_bool(row[5] if len(row) > 5 else False)
@@ -282,10 +300,12 @@ class CompetitionTrackerEngine:
                 
                 # Format completion percentage
                 raw_p1_pct = safe_float(row[10] if len(row) > 10 else 0)
+                if 0 < raw_p1_pct <= 1.0:
+                    raw_p1_pct = round(raw_p1_pct * 100, 1)
                 p1_pct = f"{raw_p1_pct:.1f}%" if raw_p1_pct > 0 else (f"{p1_score:.1f}%" if p1_score > 0 else "0%")
 
-                p2_wake = CompetitionTrackerEngine.clean_time_str(row[11] if len(row) > 11 else None)
-                p2_sleep = CompetitionTrackerEngine.clean_time_str(row[12] if len(row) > 12 else None)
+                p2_wake = CompetitionTrackerEngine.clean_time_str(row[11] if len(row) > 11 else None, tz_str)
+                p2_sleep = CompetitionTrackerEngine.clean_time_str(row[12] if len(row) > 12 else None, tz_str)
                 p2_study = safe_float(row[13] if len(row) > 13 else 0)
                 p2_english = safe_float(row[14] if len(row) > 14 else 0)
                 p2_workout = safe_bool(row[15] if len(row) > 15 else False)
@@ -295,6 +315,8 @@ class CompetitionTrackerEngine:
                 p2_score = safe_float(row[19] if len(row) > 19 else 0)
                 
                 raw_p2_pct = safe_float(row[20] if len(row) > 20 else 0)
+                if 0 < raw_p2_pct <= 1.0:
+                    raw_p2_pct = round(raw_p2_pct * 100, 1)
                 p2_pct = f"{raw_p2_pct:.1f}%" if raw_p2_pct > 0 else (f"{p2_score:.1f}%" if p2_score > 0 else "0%")
 
                 # Check if this row is an empty future template row
