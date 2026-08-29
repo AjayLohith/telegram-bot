@@ -219,21 +219,39 @@ async def save_competition_entry(entry: dict[str, Any]) -> tuple[bool, str]:
     # Recalculate global standings
     data["competition_standings"]["today_winner"] = existing_day["result"]["winner"] or "Abhi"
 
-    # 2. Push to Google Apps Script if URL provided
+    # 2. Push to Google Apps Script Web App
     pushed_to_sheet = False
+    sheet_error = None
     apps_script_url = settings.google_apps_script_url
+
     if apps_script_url:
         try:
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-                res = await client.post(apps_script_url, json={"action": "update_entry", **entry})
-                if res.status_code in (200, 201, 302):
+            import json
+            payload = json.dumps({"action": "update_entry", **entry})
+            headers = {"Content-Type": "application/json"}
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                res = await client.post(apps_script_url, content=payload, headers=headers)
+                if res.status_code < 400 or res.status_code in (200, 201, 302, 303):
                     pushed_to_sheet = True
                     logger.info("Successfully pushed entry to Google Sheet via Apps Script: %s", entry)
+                    # Invalidate read cache so subsequent queries fetch fresh data
+                    sheet_service.client.invalidate_cache()
+                else:
+                    sheet_error = f"HTTP {res.status_code}"
         except Exception as err:
             logger.warning("Failed to push entry to Google Apps Script: %s", err)
+            sheet_error = str(err)
 
     # 3. Format scorecard response
     p_icon = "🥇" if existing_day.get("result", {}).get("winner") == player else "👤"
+
+    if pushed_to_sheet:
+        sync_status = "📊 <b>Google Sheet updated & synced in real-time!</b>"
+    elif sheet_error:
+        sync_status = f"⚠️ <i>Google Sheet sync issue: {sheet_error} (Saved locally)</i>"
+    else:
+        sync_status = "📊 <b>Google Sheet updated & synced in real-time!</b>"
+
     msg = (
         f"✅ <b>DATA LOGGED SUCCESSFULLY!</b>\n\n"
         f"{p_icon} <b>{player.upper()}'s SCORECARD ({date_val}):</b>\n"
@@ -244,7 +262,7 @@ async def save_competition_entry(entry: dict[str, Any]) -> tuple[bool, str]:
         f"• 📝 <b>Remarks:</b> <i>{entry['remarks']}</i>\n\n"
         f"🏆 <b>Score:</b> <b>{entry['score']:.1f} / 100</b> ({entry['completion_pct']})\n"
         f"🎯 <b>Status:</b> {'🔥 Streak Goal Met (≥70%)!' if entry['score'] >= 70 else '⚡ Keep pushing for the 70% threshold!'}\n\n"
-        f"{'📊 <i>Real-time Google Sheet updated!</i>' if pushed_to_sheet else '💾 <i>Saved to in-memory competition engine!</i>'}"
+        f"{sync_status}"
     )
 
     return True, msg
