@@ -223,6 +223,10 @@ async def save_competition_entry(entry: dict[str, Any]) -> tuple[bool, str]:
     pushed_to_sheet = False
     sheet_error = None
     apps_script_url = settings.google_apps_script_url
+    if apps_script_url:
+        apps_script_url = str(apps_script_url).strip().strip("'\"")
+        if not apps_script_url.startswith("http://") and not apps_script_url.startswith("https://"):
+            apps_script_url = "https://" + apps_script_url
 
     if apps_script_url:
         try:

@@ -1,5 +1,7 @@
 from pathlib import Path
+from typing import Any
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,6 +58,18 @@ class Settings(BaseSettings):
     google_private_key: str | None = None
     google_sheets_api_key: str | None = None
     sheets_cache_ttl_seconds: int = 300
+
+    @field_validator("google_apps_script_url", mode="before")
+    @classmethod
+    def sanitize_apps_script_url(cls, v: Any) -> str | None:
+        if not v:
+            return None
+        s = str(v).strip().strip("'\"")
+        if not s:
+            return None
+        if not s.startswith("http://") and not s.startswith("https://"):
+            s = "https://" + s
+        return s
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
