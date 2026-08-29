@@ -189,6 +189,31 @@ class CompetitionTrackerEngine:
         return s
 
     @staticmethod
+    def clean_time_str(time_val: Any) -> str:
+        """Cleans timestamps like 1899-12-30T16:00:00.000Z to 04:00 PM."""
+        if not time_val:
+            return "N/A"
+        s = str(time_val).strip()
+        if not s or s.lower() in ("none", "null", "n/a", "pending"):
+            return "N/A"
+        if "t" in s.lower():
+            s = s.split("T" if "T" in s else "t")[1].replace("Z", "").replace("z", "").split(".")[0].strip()
+        
+        parts = s.split(":")
+        if len(parts) >= 2:
+            try:
+                hr = int(parts[0])
+                mn = int(parts[1])
+                ampm = "AM" if hr < 12 else "PM"
+                display_hr = hr % 12
+                if display_hr == 0:
+                    display_hr = 12
+                return f"{display_hr:02d}:{mn:02d} {ampm}"
+            except ValueError:
+                pass
+        return s
+
+    @staticmethod
     def parse_competition_grid(raw_values: list[list[str]], existing_data: dict[str, Any] | None = None) -> dict[str, Any]:
         """Dynamically parses raw 2D grid from Google Sheet into structured competition data, filtering out empty template rows."""
         data = dict(existing_data or DEFAULT_COMPETITION_DATA)
@@ -215,7 +240,7 @@ class CompetitionTrackerEngine:
                         return default
                     try:
                         clean = str(val).replace("%", "").replace("₹", "").replace("$", "").replace(",", "").strip()
-                        return float(clean)
+                        return round(float(clean), 2)
                     except ValueError:
                         return default
 
@@ -231,8 +256,8 @@ class CompetitionTrackerEngine:
                 def safe_bool(val: Any) -> bool:
                     return str(val).strip().lower() in ("true", "yes", "y", "1")
 
-                p1_wake = row[1].strip() if len(row) > 1 and row[1].strip() else None
-                p1_sleep = row[2].strip() if len(row) > 2 and row[2].strip() else None
+                p1_wake = CompetitionTrackerEngine.clean_time_str(row[1] if len(row) > 1 else None)
+                p1_sleep = CompetitionTrackerEngine.clean_time_str(row[2] if len(row) > 2 else None)
                 p1_study = safe_float(row[3] if len(row) > 3 else 0)
                 p1_english = safe_float(row[4] if len(row) > 4 else 0)
                 p1_workout = safe_bool(row[5] if len(row) > 5 else False)
@@ -240,10 +265,13 @@ class CompetitionTrackerEngine:
                 p1_junk = safe_bool(row[7] if len(row) > 7 else False)
                 p1_remarks = row[8].strip() if len(row) > 8 and row[8].strip() else None
                 p1_score = safe_float(row[9] if len(row) > 9 else 0)
-                p1_pct = f"{int(safe_float(row[10] if len(row) > 10 else row[9] if len(row) > 9 else 0))}%"
+                
+                # Format completion percentage
+                raw_p1_pct = safe_float(row[10] if len(row) > 10 else 0)
+                p1_pct = f"{raw_p1_pct:.1f}%" if raw_p1_pct > 0 else (f"{p1_score:.1f}%" if p1_score > 0 else "0%")
 
-                p2_wake = row[11].strip() if len(row) > 11 and row[11].strip() else None
-                p2_sleep = row[12].strip() if len(row) > 12 and row[12].strip() else None
+                p2_wake = CompetitionTrackerEngine.clean_time_str(row[11] if len(row) > 11 else None)
+                p2_sleep = CompetitionTrackerEngine.clean_time_str(row[12] if len(row) > 12 else None)
                 p2_study = safe_float(row[13] if len(row) > 13 else 0)
                 p2_english = safe_float(row[14] if len(row) > 14 else 0)
                 p2_workout = safe_bool(row[15] if len(row) > 15 else False)
@@ -251,11 +279,13 @@ class CompetitionTrackerEngine:
                 p2_junk = safe_bool(row[17] if len(row) > 17 else False)
                 p2_remarks = row[18].strip() if len(row) > 18 and row[18].strip() else None
                 p2_score = safe_float(row[19] if len(row) > 19 else 0)
-                p2_pct = f"{int(safe_float(row[20] if len(row) > 20 else row[19] if len(row) > 19 else 0))}%"
+                
+                raw_p2_pct = safe_float(row[20] if len(row) > 20 else 0)
+                p2_pct = f"{raw_p2_pct:.1f}%" if raw_p2_pct > 0 else (f"{p2_score:.1f}%" if p2_score > 0 else "0%")
 
                 # Check if this row is an empty future template row
-                has_p1_data = bool(p1_wake or p1_sleep or p1_study > 0 or p1_english > 0 or p1_workout or p1_steps > 0 or p1_remarks or p1_score > 0)
-                has_p2_data = bool(p2_wake or p2_sleep or p2_study > 0 or p2_english > 0 or p2_workout or p2_steps > 0 or p2_remarks or p2_score > 0)
+                has_p1_data = bool(p1_wake != "N/A" or p1_sleep != "N/A" or p1_study > 0 or p1_english > 0 or p1_workout or p1_steps > 0 or p1_remarks or p1_score > 0)
+                has_p2_data = bool(p2_wake != "N/A" or p2_sleep != "N/A" or p2_study > 0 or p2_english > 0 or p2_workout or p2_steps > 0 or p2_remarks or p2_score > 0)
 
                 # Skip completely blank/future template rows
                 if not has_p1_data and not has_p2_data:
@@ -294,16 +324,18 @@ class CompetitionTrackerEngine:
                 if not winner or winner.lower() in ("none", "null", ""):
                     if p1_score > p2_score:
                         winner = p1_name
-                        diff = round(p1_score - p2_score, 1)
+                        diff = round(p1_score - p2_score, 2)
                     elif p2_score > p1_score:
                         winner = p2_name
-                        diff = round(p2_score - p1_score, 1)
+                        diff = round(p2_score - p1_score, 2)
                     elif p1_score > 0:
                         winner = "Draw"
                         diff = 0.0
                     else:
                         winner = None
                         diff = 0.0
+                else:
+                    diff = round(abs(p1_score - p2_score), 2) if diff == 0 and p1_score != p2_score else round(diff, 2)
 
                 logged_days.append({
                     "date": first_cell,
@@ -311,7 +343,7 @@ class CompetitionTrackerEngine:
                     p2_name: p2_entry,
                     "result": {
                         "winner": winner,
-                        "point_diff": diff,
+                        "point_diff": round(diff, 2),
                     },
                 })
 
@@ -329,7 +361,7 @@ class CompetitionTrackerEngine:
             latest_day_with_result = next((d for d in reversed(logged_days) if d.get("result", {}).get("winner")), logged_days[-1])
             latest_winner = latest_day_with_result.get("result", {}).get("winner") or (p1_name if p1_total >= p2_total else p2_name)
             current_leader = p1_name if p1_total >= p2_total else p2_name
-            score_diff = round(abs(p1_total - p2_total), 1)
+            score_diff = round(abs(p1_total - p2_total), 2)
 
             data["competition_standings"] = {
                 "today_winner": latest_winner,
@@ -337,15 +369,15 @@ class CompetitionTrackerEngine:
                 "score_difference": score_diff,
                 "standings": {
                     p1_name: {
-                        "total_points": round(p1_total, 1),
-                        "average_score": round(p1_total / len(logged_days), 1) if logged_days else 0,
+                        "total_points": round(p1_total, 2),
+                        "average_score": round(p1_total / len(logged_days), 2) if logged_days else 0,
                         "wins": p1_wins,
                         "losses": p2_wins,
                         "draws": draws,
                     },
                     p2_name: {
-                        "total_points": round(p2_total, 1),
-                        "average_score": round(p2_total / len(logged_days), 1) if logged_days else 0,
+                        "total_points": round(p2_total, 2),
+                        "average_score": round(p2_total / len(logged_days), 2) if logged_days else 0,
                         "wins": p2_wins,
                         "losses": p1_wins,
                         "draws": draws,
@@ -377,8 +409,8 @@ class CompetitionTrackerEngine:
             latest_date = "Today"
             p1_score = 56.3
             p2_score = 23.1
-            p1_pct = "56%"
-            p2_pct = "23%"
+            p1_pct = "56.3%"
+            p2_pct = "23.1%"
         else:
             winner = latest_entry.get("result", {}).get("winner") or standings.get("today_winner", "Abhi")
             diff = latest_entry.get("result", {}).get("point_diff") or standings.get("score_difference", 0.0)
@@ -395,10 +427,10 @@ class CompetitionTrackerEngine:
         return (
             f"🏆 <b>TODAY'S WINNER: {winner.upper()}</b>\n\n"
             f"📅 <b>Date:</b> {latest_date}\n"
-            f"🥇 <b>{winner}</b> won by a margin of <b>+{diff:.1f} pts</b>!\n\n"
+            f"🥇 <b>{winner}</b> won by a margin of <b>+{diff:.2f} pts</b>!\n\n"
             f"<b>📊 Scores Breakdown:</b>\n"
-            f"• 👤 <b>Abhi:</b> {p1_score} pts ({p1_pct})\n"
-            f"• 👤 <b>Ajay:</b> {p2_score} pts ({p2_pct})\n\n"
+            f"• 👤 <b>Abhi:</b> {p1_score:.1f} pts ({p1_pct})\n"
+            f"• 👤 <b>Ajay:</b> {p2_score:.1f} pts ({p2_pct})\n\n"
             f"{congrats_line}"
         )
 
@@ -411,15 +443,15 @@ class CompetitionTrackerEngine:
 
         lines = [
             "📊 <b>DAILY COMPETITION LEADERBOARD</b>\n",
-            f"👑 <b>Current Leader:</b> <b>{leader}</b> (+{diff:.1f} pts)\n",
+            f"👑 <b>Current Leader:</b> <b>{leader}</b> (+{diff:.2f} pts)\n",
         ]
 
         for player, stats in standings.items():
             rank_icon = "🥇" if player == leader else "🥈"
             lines.append(
                 f"{rank_icon} <b>{player}</b>\n"
-                f"  • <b>Total Points:</b> {stats.get('total_points', 0)} pts\n"
-                f"  • <b>Average Score:</b> {stats.get('average_score', 0)} pts\n"
+                f"  • <b>Total Points:</b> {stats.get('total_points', 0):.1f} pts\n"
+                f"  • <b>Average Score:</b> {stats.get('average_score', 0):.1f} pts\n"
                 f"  • <b>Win Record:</b> {stats.get('wins', 0)}W - {stats.get('losses', 0)}L - {stats.get('draws', 0)}D\n"
             )
 
@@ -462,22 +494,28 @@ class CompetitionTrackerEngine:
         abhi = entry.get("Abhi", {})
         ajay = entry.get("Ajay", {})
         res = entry.get("result", {})
+        diff_val = res.get("point_diff", 0.0) or 0.0
+
+        p1_wake = CompetitionTrackerEngine.clean_time_str(abhi.get("wake_time"))
+        p1_sleep = CompetitionTrackerEngine.clean_time_str(abhi.get("sleep_time"))
+        p2_wake = CompetitionTrackerEngine.clean_time_str(ajay.get("wake_time"))
+        p2_sleep = CompetitionTrackerEngine.clean_time_str(ajay.get("sleep_time"))
 
         return (
             f"📅 <b>DAILY TRACKER LOG — {d_val}</b>\n\n"
-            f"👤 <b>ABHI ({abhi.get('score', 0)} pts - {abhi.get('completion_pct', '0%')}):</b>\n"
-            f"• ⏰ Wake: {abhi.get('wake_time') or 'N/A'} | Sleep: {abhi.get('sleep_time') or 'N/A'}\n"
-            f"• 📚 Study: {abhi.get('study_hrs', 0)}h | 🗣 English: {abhi.get('english_hrs', 0)}h\n"
-            f"• 🏃 Workout: {'✅' if abhi.get('workout') else '❌'} | 👣 Steps: {abhi.get('steps') or 0:,}\n"
-            f"• 🍔 No Junk Food: {'✅' if not abhi.get('junk_food') else '❌'}\n"
-            f"• 📝 Remarks: <i>{abhi.get('remarks') or 'None'}</i>\n\n"
-            f"👤 <b>AJAY ({ajay.get('score', 0)} pts - {ajay.get('completion_pct', '0%')}):</b>\n"
-            f"• ⏰ Wake: {ajay.get('wake_time') or 'N/A'} | Sleep: {ajay.get('sleep_time') or 'N/A'}\n"
-            f"• 📚 Study: {ajay.get('study_hrs', 0)}h | 🗣 English: {ajay.get('english_hrs', 0)}h\n"
-            f"• 🏃 Workout: {'✅' if ajay.get('workout') else '❌'} | 👣 Steps: {ajay.get('steps') or 0:,}\n"
-            f"• 🍔 No Junk Food: {'✅' if not ajay.get('junk_food') else '❌'}\n"
-            f"• 📝 Remarks: <i>{ajay.get('remarks') or 'None'}</i>\n\n"
-            f"🏆 <b>Result:</b> {res.get('winner', 'Draw')} (+{res.get('point_diff', 0)} pts)"
+            f"👤 <b>ABHI ({abhi.get('score', 0):.1f} pts — {abhi.get('completion_pct', '0%')}):</b>\n"
+            f"• ⏰ <b>Wake:</b> {p1_wake} | <b>Sleep:</b> {p1_sleep}\n"
+            f"• 📚 <b>Study:</b> {abhi.get('study_hrs', 0):.1f}h | 🗣 <b>English:</b> {abhi.get('english_hrs', 0):.1f}h\n"
+            f"• 🏃 <b>Workout:</b> {'✅ Done' if abhi.get('workout') else '❌ Missed'} | 👣 <b>Steps:</b> {abhi.get('steps') or 0:,}\n"
+            f"• 🍔 <b>No Junk Food:</b> {'✅ Clean' if not abhi.get('junk_food') else '❌ Consumed'}\n"
+            f"• 📝 <b>Remarks:</b> <i>{abhi.get('remarks') or 'None'}</i>\n\n"
+            f"👤 <b>AJAY ({ajay.get('score', 0):.1f} pts — {ajay.get('completion_pct', '0%')}):</b>\n"
+            f"• ⏰ <b>Wake:</b> {p2_wake} | <b>Sleep:</b> {p2_sleep}\n"
+            f"• 📚 <b>Study:</b> {ajay.get('study_hrs', 0):.1f}h | 🗣 <b>English:</b> {ajay.get('english_hrs', 0):.1f}h\n"
+            f"• 🏃 <b>Workout:</b> {'✅ Done' if ajay.get('workout') else '❌ Missed'} | 👣 <b>Steps:</b> {ajay.get('steps') or 0:,}\n"
+            f"• 🍔 <b>No Junk Food:</b> {'✅ Clean' if not ajay.get('junk_food') else '❌ Consumed'}\n"
+            f"• 📝 <b>Remarks:</b> <i>{ajay.get('remarks') or 'None'}</i>\n\n"
+            f"🏆 <b>Result:</b> <b>{res.get('winner', 'Draw')}</b> (+{diff_val:.2f} pts)"
         )
 
     @staticmethod
@@ -496,11 +534,14 @@ class CompetitionTrackerEngine:
         winner = latest.get("result", {}).get("winner") or standings.get("today_winner", "Abhi")
         win_diff = latest.get("result", {}).get("point_diff") or diff
 
+        p1_wake = CompetitionTrackerEngine.clean_time_str(abhi.get("wake_time"))
+        p2_wake = CompetitionTrackerEngine.clean_time_str(ajay.get("wake_time"))
+
         return (
             f"[COMPETITION DATA CONTEXT (Abhi vs Ajay)]:\n"
-            f"- Current Standings: Leader = {leader} (+{diff} pts). Abhi: {st_abhi.get('total_points', 0)} pts ({st_abhi.get('wins', 0)}W), Ajay: {st_ajay.get('total_points', 0)} pts ({st_ajay.get('wins', 0)}W).\n"
+            f"- Current Standings: Leader = {leader} (+{diff:.2f} pts). Abhi: {st_abhi.get('total_points', 0):.1f} pts ({st_abhi.get('wins', 0)}W), Ajay: {st_ajay.get('total_points', 0):.1f} pts ({st_ajay.get('wins', 0)}W).\n"
             f"- Latest Logged Entry ({d_val}):\n"
-            f"  * Abhi: Score {abhi.get('score', 0)}/100 ({abhi.get('completion_pct', '0%')}) | Wake: {abhi.get('wake_time')} | Study: {abhi.get('study_hrs', 0)}h | English: {abhi.get('english_hrs', 0)}h | Workout: {'Yes' if abhi.get('workout') else 'No'} | Steps: {abhi.get('steps', 0)} | Remarks: '{abhi.get('remarks') or 'None'}'\n"
-            f"  * Ajay: Score {ajay.get('score', 0)}/100 ({ajay.get('completion_pct', '0%')}) | Wake: {ajay.get('wake_time')} | Study: {ajay.get('study_hrs', 0)}h | English: {ajay.get('english_hrs', 0)}h | Workout: {'Yes' if ajay.get('workout') else 'No'} | Steps: {ajay.get('steps', 0)} | Remarks: '{ajay.get('remarks') or 'None'}'\n"
-            f"  * Daily Result: Winner = {winner} (+{win_diff} pts)\n"
+            f"  * Abhi: Score {abhi.get('score', 0):.1f}/100 ({abhi.get('completion_pct', '0%')}) | Wake: {p1_wake} | Study: {abhi.get('study_hrs', 0):.1f}h | English: {abhi.get('english_hrs', 0):.1f}h | Workout: {'Yes' if abhi.get('workout') else 'No'} | Steps: {abhi.get('steps', 0):,} | Remarks: '{abhi.get('remarks') or 'None'}'\n"
+            f"  * Ajay: Score {ajay.get('score', 0):.1f}/100 ({ajay.get('completion_pct', '0%')}) | Wake: {p2_wake} | Study: {ajay.get('study_hrs', 0):.1f}h | English: {ajay.get('english_hrs', 0):.1f}h | Workout: {'Yes' if ajay.get('workout') else 'No'} | Steps: {ajay.get('steps', 0):,} | Remarks: '{ajay.get('remarks') or 'None'}'\n"
+            f"  * Daily Result: Winner = {winner} (+{win_diff:.2f} pts)\n"
         )
