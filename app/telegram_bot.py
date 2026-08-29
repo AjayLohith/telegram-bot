@@ -29,6 +29,7 @@ async def run_polling() -> None:
         from aiogram.types import BotCommand
         commands = [
             BotCommand(command="remainder", description="Set reminder (e.g. Study DSA 16:04)"),
+            BotCommand(command="sheet", description="Google Sheets Assistant & Analytics"),
             BotCommand(command="ask", description="Fast 1-line AI answer"),
             BotCommand(command="news", description="Daily Verified News Digest"),
             BotCommand(command="reminders", description="View & manage active reminders"),

@@ -8,7 +8,7 @@ def get_main_reply_keyboard() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text="📰 Today's News"), KeyboardButton(text="⏰ My Reminders")],
             [KeyboardButton(text="➕ Add Reminder"), KeyboardButton(text="❓ Ask AI")],
-            [KeyboardButton(text="⚙️ Settings")],
+            [KeyboardButton(text="📊 Sheet Data"), KeyboardButton(text="⚙️ Settings")],
         ],
         resize_keyboard=True,
         is_persistent=True,
@@ -24,6 +24,9 @@ def get_clean_dashboard_keyboard() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="➕ Add New Reminder", callback_data="btn_add_reminder"),
+            InlineKeyboardButton(text="📊 Sheet Data", callback_data="sheet_summary"),
+        ],
+        [
             InlineKeyboardButton(text="⚙️ Settings", callback_data="btn_settings"),
         ],
     ]

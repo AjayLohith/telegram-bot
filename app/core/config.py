@@ -45,7 +45,16 @@ class Settings(BaseSettings):
     mistral_model: str = "mistral-small-latest"
     gemini_api_key: str | None = None
     news_api_key: str | None = None
-    turso_auth_token: str | None = None
+    # Google Sheets Integration
+    google_spreadsheet_id: str | None = "1Se-MgRJ3rKQ5ToqMTKxHJ0q7EJuoH_iogS0zKul8OCg"
+    google_sheet_name: str | None = None
+    google_apps_script_url: str | None = None
+    google_service_account_file: str | None = None
+    google_service_account_json: str | None = None
+    google_service_account_email: str | None = None
+    google_private_key: str | None = None
+    google_sheets_api_key: str | None = None
+    sheets_cache_ttl_seconds: int = 300
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

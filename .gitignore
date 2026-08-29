@@ -5,3 +5,10 @@ __pycache__/
 data/*.db
 data/*.db-*
 *.egg-info/
+*.json
+!package.json
+!tsconfig*.json
+credentials*.json
+service-account*.json
+*.pem
+*.key

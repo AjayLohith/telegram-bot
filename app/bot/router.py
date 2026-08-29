@@ -9,7 +9,7 @@ from app.ai.ask_service import ask_fast_answer
 from app.ai.http_providers import configured_providers
 from app.ai.providers import AIRouter, ProviderError
 from app.bot.formatters import format_help_message
-from app.bot.handlers import admin, news, productivity, settings as settings_handler
+from app.bot.handlers import admin, news, productivity, settings as settings_handler, sheets
 from app.bot.keyboards import get_clean_dashboard_keyboard, get_main_reply_keyboard
 from app.core.config import settings
 from app.core.database import SessionLocal
@@ -38,9 +38,11 @@ async def start_handler(message: Message) -> None:
         f"Good day, sir. All neural diagnostics, task schedulers, and intelligence feeds are fully operational.\n\n"
         f"📰 <b>Daily Intelligence Briefing:</b> 07:00 AM IST\n"
         f"⏰ <b>Active Directives:</b> {len(reminders)}\n"
+        f"📊 <b>Google Sheets Assistant:</b> {'Active' if settings.google_spreadsheet_id else 'Configurable'}\n"
         f"🌍 <b>Chronometer:</b> {user_tz}\n\n"
         f"<b>Tactical Commands:</b>\n"
-        f"• <code>Study DSA 16:04</code> — Set reminder directive (24h or 12h)\n"
+        f"• <code>Study DSA 16:04</code> — Set reminder directive\n"
+        f"• <code>/sheet</code> — Google Sheets Assistant & Data Intelligence\n"
         f"• <code>ask &lt;query&gt;</code> — Instant 1-line intelligence lookup\n"
         f"• <code>reminders</code> — View & manage your directives\n"
         f"• <code>news</code> — 25-item Verified Intelligence Digest\n"
@@ -108,10 +110,12 @@ async def status_handler(message: Message) -> None:
         memory_count = len(MemoryRepository(session).list(message.from_user.id))
         now_str = datetime.now(ZoneInfo(user_tz)).strftime("%Y-%m-%d %H:%M:%S %Z")
 
+    sheet_status = "Connected" if settings.google_spreadsheet_id else "Not configured"
     status_msg = (
         f"🤖 <b>J.A.R.V.I.S. SYSTEM DIAGNOSTICS</b>\n\n"
         f"🟢 Core Intelligence: Online & Nominal\n"
         f"🛡️ Arc Reactor / Server: 100% Operational\n"
+        f"📊 Google Sheets Integration: {sheet_status}\n"
         f"🌍 Chronometer: {user_tz}\n"
         f"🕒 Local Time: {now_str}\n"
         f"🧠 Neural Memories: {memory_count}\n"
@@ -143,6 +147,7 @@ async def default_message_handler(message: Message) -> None:
             f"❓ Unrecognized protocol <code>{text.split()[0]}</code>, sir.\n\n"
             "💡 Available Protocols:\n"
             "• <code>Study DSA 16:04</code> — Set reminder directive\n"
+            "• <code>/sheet</code> — Google Sheets Assistant\n"
             "• <code>ask &lt;query&gt;</code> — Quick intelligence lookup\n"
             "• <code>reminders</code> — View active directives\n"
             "• <code>news</code> — Daily news briefing\n"
@@ -150,6 +155,13 @@ async def default_message_handler(message: Message) -> None:
             reply_markup=get_main_reply_keyboard(),
             parse_mode="HTML",
         )
+        return
+
+    # If spreadsheet is configured and query contains data/sheet query triggers
+    sheet_triggers = ("sheet", "sheets", "spreadsheet", "sales", "revenue", "orders", "dataset", "top products")
+    if settings.google_spreadsheet_id and any(t in text.lower() for t in sheet_triggers):
+        answer = await sheets.sheet_service.answer_question(text)
+        await message.answer(answer, reply_markup=get_main_reply_keyboard(), parse_mode="HTML")
         return
 
     # Freeform natural question without /ask prefix
@@ -160,6 +172,7 @@ async def default_message_handler(message: Message) -> None:
 # Master Router: strictly registers specific command routers first, fallback router last
 main_router = Router()
 main_router.include_router(base_router)
+main_router.include_router(sheets.router)
 main_router.include_router(news.router)
 main_router.include_router(productivity.router)
 main_router.include_router(settings_handler.router)
