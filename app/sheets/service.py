@@ -308,3 +308,6 @@ class SheetAIService:
         """Returns safe, user-friendly error messages without leaking secrets."""
         logger.warning("Live sheet access error, using competition data: %s", exc)
         return CompetitionTrackerEngine.format_winner_today(self.competition_data)
+
+
+sheet_service = SheetAIService()
