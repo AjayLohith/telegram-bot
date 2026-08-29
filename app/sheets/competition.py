@@ -242,6 +242,18 @@ class CompetitionTrackerEngine:
                 return f"{hr:02d}:{mn:02d}"
             except ValueError:
                 pass
+
+        # Handle standalone hour number (e.g. "7" -> "07:00", "23" -> "23:00")
+        if s.isdigit():
+            try:
+                hr = int(s)
+                if 0 <= hr <= 24:
+                    if hr == 24:
+                        hr = 0
+                    return f"{hr:02d}:00"
+            except ValueError:
+                pass
+
         return s
 
     @staticmethod
