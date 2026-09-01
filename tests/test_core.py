@@ -82,3 +82,22 @@ def test_digest_sections_are_separate_messages():
 def test_digest_removes_escaped_rss_links_and_indents_bullets():
     assert "href" not in _clean("&lt;a href=\"https://example.com\"&gt;RSS link&lt;/a&gt;")
     assert "https://" not in _clean("Read https://example.com for details")
+
+
+def test_health_and_ping_endpoints():
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "online"
+
+    ping_resp = client.get("/ping")
+    assert ping_resp.status_code == 200
+    assert ping_resp.json()["status"] == "ok"
+
+    health_resp = client.get("/health")
+    assert health_resp.status_code == 200
+    assert health_resp.json()["status"] == "ok"
+
