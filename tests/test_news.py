@@ -8,7 +8,7 @@ from app.news.verification import canonical_url, clean_html_text, is_fresh_artic
 def test_sources_contain_all_five_categories():
     assert "ai" in CATEGORY_SOURCES
     assert "world" in CATEGORY_SOURCES
-    assert "anime" in CATEGORY_SOURCES
+    assert "cinema" in CATEGORY_SOURCES
     assert "telugu" in CATEGORY_SOURCES
     assert "india" in CATEGORY_SOURCES
     for cat, list_src in CATEGORY_SOURCES.items():

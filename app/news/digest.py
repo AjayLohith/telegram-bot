@@ -142,7 +142,7 @@ async def build_compact_digest(
     language: str = "en",
 ) -> str:
     """Build a compact top news digest for /news 5 with clean Telegram HTML and ZERO URLs."""
-    categories = ["ai", "world", "anime", "telugu", "india"]
+    categories = ["ai", "world", "cinema", "telugu", "india"]
     service = NewsService(session)
     await service.refresh_all()
 
@@ -188,7 +188,7 @@ async def build_full_daily_digest(
     per_category_limit: int = 5,
 ) -> list[str]:
     """Builds the complete 25-item Daily Intelligence Digest with clean Telegram HTML."""
-    categories = ["ai", "world", "anime", "telugu", "india"]
+    categories = ["ai", "world", "cinema", "telugu", "india"]
     service = NewsService(session)
     await service.refresh_all()
 
@@ -200,14 +200,13 @@ async def build_full_daily_digest(
         f"📅 {date_str}\n"
         f"⏰ {settings.news_time} AM IST\n\n"
         "<b>Verified Intelligence Categories:</b>\n\n"
-        "🤖 AI Developments — 5\n"
+        "🤖 AI & Viral Tech — 5\n"
         "🌍 Global & Geopolitics — 5\n"
-        "🍥 Anime & Culture — 5\n"
-        "🟡 Telugu & Regional — 5\n"
+        "🎬 Cinema & Tollywood Buzz — 5\n"
+        "🟡 Andhra Pradesh (తెలుగు) — 5\n"
         "🇮🇳 India National — 5\n\n"
         "<i>All sources cross-verified for accuracy, sir.</i>"
     )
-
 
     messages = [sanitize_zero_urls(header_msg)]
 
@@ -226,15 +225,17 @@ def split_digest_sections(digest: str) -> list[str]:
         "<b>AI |",
         "<b>WORLD AND INDIA |",
         "<b>SPORT AND CRICKET |",
-        "<b>CINEMA AND ANIME |",
+        "<b>CINEMA |",
         "<b>🤖 AI",
         "<b>🌍 GEOGRAPHY",
-        "<b>🍥 ANIME",
+        "<b>🎬 CINEMA",
+        "<b>🟡 ANDHRA",
         "<b>🟡 TELUGU",
         "<b>🇮🇳 INDIA",
         "🤖 AI",
         "🌍 GEOGRAPHY",
-        "🍥 ANIME",
+        "🎬 CINEMA",
+        "🟡 ANDHRA",
         "🟡 TELUGU",
         "🇮🇳 INDIA",
     )

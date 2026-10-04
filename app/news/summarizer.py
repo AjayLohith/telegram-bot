@@ -9,10 +9,10 @@ from app.news.verification import clean_html_text
 logger = logging.getLogger(__name__)
 
 CATEGORY_DEFAULT_WHY: dict[str, str] = {
-    "ai": "Signals significant progress in AI models, architecture, chips, or developer tooling.",
+    "ai": "Signals significant progress, viral developments, or safety concerns in AI models and tooling.",
     "world": "Affects regional geopolitical balance, environmental resilience, or geographic stability.",
-    "anime": "Marks an official production update, broadcast timeline, or creative studio milestone.",
-    "telugu": "Represents an important regional governance, economic, or cultural milestone for Andhra Pradesh and Telangana.",
+    "cinema": "Highlights major box office trends, movie announcements, upcoming releases, or industry buzz.",
+    "telugu": "ఆంధ్రప్రదేశ్ రాష్ట్ర అభివృద్ధి, పరిపాలన లేదా ప్రజా సంక్షేమానికి సంబంధించిన ముఖ్యమైన వార్త.",
     "india": "Impacts India's national development, technological advancement, economy, or public policy.",
 }
 
@@ -56,15 +56,21 @@ async def summarize_category_articles(
     if router_ai is None:
         return [_build_fallback(item, fallback_why) for item in items]
 
+    target_lang = "Telugu (తెలుగు)" if (category == "telugu" or language == "te") else "English"
+
     prompt_lines = [
-        f"You are a factual news intelligence assistant. Summarize the following {len(items)} {category.upper()} articles.",
-        f"Language requested: {'Telugu' if language == 'te' else 'English'}.",
+        f"You are a high-accuracy, factual news intelligence assistant. Summarize the following {len(items)} {category.upper()} articles.",
+        f"Output Language: {target_lang}.",
         "STRICT RULES:",
         "1. Never invent missing facts, names, numbers, or events.",
-        "2. 'what_happened' must be 2-4 factual sentences strictly based on the headline and snippet.",
-        "3. 'why_it_matters' must be 1 concise sentence explaining the significance.",
-        "4. Return ONLY valid JSON format: {\"items\": [{\"what_happened\": \"...\", \"why_it_matters\": \"...\"}]}.",
-        "5. Output must have exactly the same number of items in the same order.\n",
+        "2. 'what_happened' must be 2-3 concise factual bullet-friendly sentences strictly based on the headline and snippet.",
+        "3. 'why_it_matters' must be 1 concise sentence explaining the direct impact or significance.",
+        f"4. If Output Language is Telugu (తెలుగు), summarize both 'what_happened' and 'why_it_matters' in clear, fluent Telugu.",
+        "5. If category is 'cinema', focus strictly on movie buzz, upcoming releases, box office, cast announcements, and Tollywood/Indian cinema updates.",
+        "6. If category is 'ai', emphasize viral AI tech, developer breakthroughs, and AI misuse/deepfakes/safety incidents.",
+        "7. If category is 'telugu', focus exclusively on Andhra Pradesh state news, governance, projects, and regional developments.",
+        "8. Return ONLY valid JSON format: {\"items\": [{\"what_happened\": \"...\", \"why_it_matters\": \"...\"}]}.",
+        "9. Output must have exactly the same number of items in the same order.\n",
     ]
 
     for idx, itm in enumerate(items, 1):

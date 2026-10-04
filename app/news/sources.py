@@ -15,8 +15,8 @@ CATEGORY_SOURCES: dict[str, list[SourceDefinition]] = {
         SourceDefinition("OpenAI Blog", "https://openai.com/blog/rss/", 1, "ai"),
         SourceDefinition("DeepMind", "https://www.deepmind.com/blog/rss.xml", 1, "ai"),
         SourceDefinition("Microsoft Research", "https://www.microsoft.com/en-us/research/feed/", 1, "ai"),
-        SourceDefinition("MIT Technology Review AI", "https://news.google.com/rss/search?q=%22MIT+Technology+Review%22+AI+OR+LLM&hl=en-IN&gl=IN&ceid=IN:en", 2, "ai"),
-        SourceDefinition("Hacker News AI", "https://news.google.com/rss/search?q=AI+OR+LLM+OR+%22Generative+AI%22+OR+%22machine+learning%22&hl=en-IN&gl=IN&ceid=IN:en", 3, "ai"),
+        SourceDefinition("AI Safety & Misuse News", "https://news.google.com/rss/search?q=%22AI+misuse%22+OR+%22deepfake%22+OR+%22AI+safety%22+OR+%22AI+scam%22+OR+%22Generative+AI%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "ai"),
+        SourceDefinition("Viral AI Tech & Tools", "https://news.google.com/rss/search?q=%22artificial+intelligence%22+OR+%22viral+AI%22+OR+ChatGPT+OR+%22Claude+AI%22&hl=en-IN&gl=IN&ceid=IN:en", 3, "ai"),
     ],
     "world": [
         SourceDefinition("BBC World", "https://feeds.bbci.co.uk/news/world/rss.xml", 2, "world"),
@@ -24,16 +24,17 @@ CATEGORY_SOURCES: dict[str, list[SourceDefinition]] = {
         SourceDefinition("Nature Climate & Earth", "https://news.google.com/rss/search?q=%22geography%22+OR+%22climate+change%22+OR+%22natural+phenomenon%22+OR+%22geopolitics%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "world"),
         SourceDefinition("World Geography & Borders", "https://news.google.com/rss/search?q=%22international+borders%22+OR+%22geospatial%22+OR+%22seismic%22+OR+%22environment%22&hl=en-IN&gl=IN&ceid=IN:en", 3, "world"),
     ],
-    "anime": [
-        SourceDefinition("Anime News Network", "https://www.animenewsnetwork.com/newsfeed.xml", 2, "anime"),
-        SourceDefinition("Crunchyroll News", "https://news.google.com/rss/search?q=%22Crunchyroll+News%22+OR+%22Anime+News+Network%22+anime+announcement&hl=en-IN&gl=IN&ceid=IN:en", 2, "anime"),
-        SourceDefinition("Anime Official Releases", "https://news.google.com/rss/search?q=anime+announcement+OR+%22new+season%22+OR+%22release+date%22+OR+%22trailer%22+anime&hl=en-IN&gl=IN&ceid=IN:en", 3, "anime"),
+    "cinema": [
+        SourceDefinition("Telugu Cinema Buzz & Tollywood", "https://news.google.com/rss/search?q=Tollywood+OR+%22Telugu+movie%22+OR+%22Telugu+cinema%22+OR+%22Tollywood+buzz%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "cinema"),
+        SourceDefinition("Upcoming Telugu & Indian Releases", "https://news.google.com/rss/search?q=%22Telugu+movie+release%22+OR+%22Tollywood+box+office%22+OR+%22Telugu+teaser%22+OR+%22Telugu+trailer%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "cinema"),
+        SourceDefinition("Indian Movies & Box Office", "https://news.google.com/rss/search?q=%22Indian+cinema%22+OR+%22Indian+movies%22+OR+%22box+office%22+movie+India&hl=en-IN&gl=IN&ceid=IN:en", 2, "cinema"),
+        SourceDefinition("Movie Industry Buzz", "https://news.google.com/rss/search?q=%22movie+industry%22+OR+%22film+industry%22+Tollywood+OR+Indian+cinema&hl=en-IN&gl=IN&ceid=IN:en", 3, "cinema"),
     ],
     "telugu": [
         SourceDefinition("The Hindu Andhra Pradesh", "https://www.thehindu.com/news/national/andhra-pradesh/feeder/default.rss", 2, "telugu"),
-        SourceDefinition("The Hindu Telangana", "https://www.thehindu.com/news/national/telangana/feeder/default.rss", 2, "telugu"),
-        SourceDefinition("Deccan Chronicle AP/Telangana", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+OR+%22Telangana%22+news&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
-        SourceDefinition("Telugu Regional & Cinema", "https://news.google.com/rss/search?q=Tollywood+OR+%22Telugu+cinema%22+OR+%22Andhra+development%22&hl=en-IN&gl=IN&ceid=IN:en", 3, "telugu"),
+        SourceDefinition("Eenadu AP State News", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+Amaravati+OR+Visakhapatnam+OR+Polavaram+OR+%22AP+government%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
+        SourceDefinition("AP Regional Developments", "https://news.google.com/rss/search?q=%22Andhra+Pradesh+news%22+OR+%22AP+Cabinet%22+OR+%22AP+Assembly%22+OR+%22Andhra+development%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
+        SourceDefinition("AP Welfare & State Infrastructure", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+schemes+OR+infrastructure+OR+welfare+AP&hl=en-IN&gl=IN&ceid=IN:en", 3, "telugu"),
     ],
     "india": [
         SourceDefinition("The Hindu National", "https://www.thehindu.com/news/national/feeder/default.rss", 2, "india"),
@@ -44,17 +45,17 @@ CATEGORY_SOURCES: dict[str, list[SourceDefinition]] = {
 }
 
 CATEGORY_DISPLAY_NAMES: dict[str, str] = {
-    "ai": "🤖 AI NEWS",
+    "ai": "🤖 AI & VIRAL TECH NEWS",
     "world": "🌍 GEOGRAPHY / WORLD NEWS",
-    "anime": "🍥 ANIME NEWS",
-    "telugu": "🟡 TELUGU NEWS",
-    "india": "🇮🇳 INDIA NEWS",
+    "cinema": "🎬 CINEMA & MOVIE BUZZ",
+    "telugu": "🟡 ANDHRA PRADESH STATE NEWS (ఆంధ్రప్రదేశ్)",
+    "india": "🇮🇳 INDIA NATIONAL NEWS",
 }
 
 CATEGORY_SHORT_LABELS: dict[str, str] = {
     "ai": "🤖 AI",
-    "world": "🌍 Geography/World",
-    "anime": "🍥 Anime",
-    "telugu": "🟡 Telugu",
+    "world": "🌍 World",
+    "cinema": "🎬 Cinema",
+    "telugu": "🟡 AP State (తెలుగు)",
     "india": "🇮🇳 India",
 }

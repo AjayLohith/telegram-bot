@@ -94,20 +94,20 @@ async def world_news_cmd(message: Message) -> None:
     await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
 
 
-@router.message(Command("anime"))
-async def anime_news_cmd(message: Message) -> None:
+@router.message(Command("cinema", "movies", "movie"))
+async def cinema_news_cmd(message: Message) -> None:
     lang = _get_user_lang(message.from_user.id)
-    status_msg = await message.answer("🔄 Fetching 5 verified Anime developments...")
+    status_msg = await message.answer("🔄 Fetching 5 Cinema & Tollywood developments...")
     with SessionLocal() as session:
-        text = await build_category_digest(session, "anime", limit=5, language=lang)
+        text = await build_category_digest(session, "cinema", limit=5, language=lang)
     await status_msg.delete()
     await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)
 
 
-@router.message(Command("telugu"))
+@router.message(Command("telugu", "ap", "andhra"))
 async def telugu_news_cmd(message: Message) -> None:
     lang = _get_user_lang(message.from_user.id)
-    status_msg = await message.answer("🔄 Fetching 5 verified Telugu & AP/TS developments...")
+    status_msg = await message.answer("🔄 Fetching 5 Andhra Pradesh State developments (తెలుగు)...")
     with SessionLocal() as session:
         text = await build_category_digest(session, "telugu", limit=5, language=lang)
     await status_msg.delete()
