@@ -7,8 +7,7 @@ from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from app.bot.formatters import format_daily_summary, format_missed_task_reminder, format_morning_message
-from app.bot.keyboards import get_reminder_delivery_keyboard, get_tasks_inline_keyboard
+from app.bot.keyboards import get_reminder_delivery_keyboard
 from app.bot.sanitizer import sanitize_zero_urls
 from app.core.config import settings
 from app.core.database import SessionLocal
@@ -19,7 +18,6 @@ from app.database.repositories.reminder_repo import ReminderRepository
 from app.database.repositories.user_repo import UserRepository
 from app.news.digest import build_full_daily_digest
 from app.productivity.reminder_ai import _build_deterministic_focus, format_reminder_message, generate_reminder_focus
-from app.productivity.service import ProductivityService
 
 logger = logging.getLogger(__name__)
 
@@ -74,45 +72,8 @@ async def check_and_dispatch_scheduled_events(bot: Bot) -> None:
                         asyncio.create_task(_send_daily_news_with_retry(bot, user.telegram_id, user.id, user.language, user_date))
                     _SENT_NOTIFICATIONS.add((user.id, user_date, "news"))
 
-                # ==========================================
-                # 2. Built-in Morning Challenge (08:00 AM)
-                # ==========================================
-                if curr_hhmm == user.morning_time and (user.id, user_date, "morning") not in _SENT_NOTIFICATIONS:
-                    await _send_morning_challenge(bot, session, user, user_date)
-                    _SENT_NOTIFICATIONS.add((user.id, user_date, "morning"))
-
-                # ==========================================
-                # 3. Built-in Task Reminders
-                # ==========================================
-                if curr_hhmm == user.video_time and (user.id, user_date, "task_video") not in _SENT_NOTIFICATIONS:
-                    await _send_task_reminder(bot, session, user, user_date, "video", "🎥 Video Time", "Time to watch your educational/learning video! 🎥")
-                    _SENT_NOTIFICATIONS.add((user.id, user_date, "task_video"))
-
-                if curr_hhmm == user.study_time and (user.id, user_date, "task_study") not in _SENT_NOTIFICATIONS:
-                    await _send_task_reminder(bot, session, user, user_date, "study", "📚 Study Time", "Time to hit the books and focus on your study target! 📚")
-                    _SENT_NOTIFICATIONS.add((user.id, user_date, "task_study"))
-
-                if curr_hhmm == user.exercise_time and (user.id, user_date, "task_exercise") not in _SENT_NOTIFICATIONS:
-                    await _send_task_reminder(bot, session, user, user_date, "exercise", "🏃 Exercise Time", "Time to get moving and crush your workout! 🏃")
-                    _SENT_NOTIFICATIONS.add((user.id, user_date, "task_exercise"))
-
-                # ==========================================
-                # 4. Missed Task Nudges (19:30)
-                # ==========================================
-                if user.missed_reminders_enabled and (user.id, user_date, "missed_check") not in _SENT_NOTIFICATIONS:
-                    if curr_hhmm == "19:30":
-                        await _send_missed_task_nudges(bot, session, user, user_date)
-                        _SENT_NOTIFICATIONS.add((user.id, user_date, "missed_check"))
-
-                # ==========================================
-                # 5. End-of-Day Summary & Remarks (21:00)
-                # ==========================================
-                if curr_hhmm == user.eod_time and (user.id, user_date, "eod") not in _SENT_NOTIFICATIONS:
-                    await _send_eod_summary(bot, session, user, user_date)
-                    _SENT_NOTIFICATIONS.add((user.id, user_date, "eod"))
-
             # ==========================================
-            # 6. Direct Active Reminders Dispatcher
+            # 2. Direct Custom Reminders (Exact User-Scheduled Point in Time)
             # ==========================================
             rem_repo = ReminderRepository(session)
             active_reminders = rem_repo.list_active_reminders()
@@ -244,67 +205,16 @@ async def _send_custom_reminder(
         logger.error("Failed to deliver custom reminder #%d to %s: %s", reminder_id, telegram_user_id, err)
 
 
-async def _send_morning_challenge(bot: Bot, session, user: User, user_date: date) -> None:
-    try:
-        service = ProductivityService(session)
-        progress = service.get_daily_progress(user.id, user_date)
-        msg_text = format_morning_message(user, progress.tasks, user_date, combined_news=user.morning_combined_enabled)
-        clean_msg = sanitize_zero_urls(msg_text)
-        keyboard = get_tasks_inline_keyboard(progress.tasks)
-        await bot.send_message(user.telegram_id, clean_msg, reply_markup=keyboard, parse_mode="HTML", disable_notification=False)
-    except Exception as e:
-        logger.warning("Failed to send morning challenge to %s: %s", user.telegram_id, e)
-
-
-async def _send_task_reminder(bot: Bot, session, user: User, user_date: date, task_type: str, title: str, subtitle: str) -> None:
-    try:
-        service = ProductivityService(session)
-        progress = service.get_daily_progress(user.id, user_date)
-        task = next((t for t in progress.tasks if t.task_type == task_type), None)
-        if not task or task.is_completed or task.is_skipped:
-            return
-
-        keyboard = get_tasks_inline_keyboard(progress.tasks)
-        text = sanitize_zero_urls(f"<b>{title}</b>\n\n{subtitle}\n\nTarget: {task.target_value:g} {task.target_unit}")
-        await bot.send_message(user.telegram_id, text, reply_markup=keyboard, parse_mode="HTML", disable_notification=False)
-    except Exception as e:
-        logger.warning("Failed to send task reminder (%s) to %s: %s", task_type, user.telegram_id, e)
-
-
-async def _send_missed_task_nudges(bot: Bot, session, user: User, user_date: date) -> None:
-    try:
-        service = ProductivityService(session)
-        missed = service.get_missed_tasks(user.id, user_date)
-        if not missed:
-            return
-
-        for m in missed:
-            nudge = sanitize_zero_urls(format_missed_task_reminder(m))
-            await bot.send_message(user.telegram_id, nudge, parse_mode="HTML", disable_notification=False)
-            await asyncio.sleep(0.3)
-    except Exception as e:
-        logger.warning("Failed to send missed task nudge to %s: %s", user.telegram_id, e)
-
-
-async def _send_eod_summary(bot: Bot, session, user: User, user_date: date) -> None:
-    try:
-        service = ProductivityService(session)
-        progress = service.save_eod_summary(user.id, user_date)
-        summary_text = sanitize_zero_urls(format_daily_summary(progress))
-        await bot.send_message(user.telegram_id, summary_text, parse_mode="HTML", disable_notification=False)
-    except Exception as e:
-        logger.warning("Failed to send EOD summary to %s: %s", user.telegram_id, e)
-
-
 def start_scheduler(bot: Bot) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone=timezone.utc)
     scheduler.add_job(
         check_and_dispatch_scheduled_events,
-        IntervalTrigger(seconds=15),
+        IntervalTrigger(seconds=30),
         args=[bot],
         id="periodic_scheduler_dispatcher",
         replace_existing=True,
     )
     scheduler.start()
-    logger.info("Universal timezone scheduler started with 15s precision.")
+    logger.info("Universal timezone scheduler started with 30s precision.")
     return scheduler
+
