@@ -44,113 +44,107 @@ def _generate_topic_aware_fallback(item: dict[str, Any], category: str) -> dict[
     t_lower = (title + " " + snippet).lower()
 
     if category == "telugu":
-        # Andhra Pradesh State News — Rich, natural Telugu synthesis
+        # Andhra Pradesh State News — Natural, everyday spoken Telugu (వ్యవహారిక తెలుగు)
         if any(w in t_lower for w in ("court", "judge", "police", "probe", "death", "arrest", "remand", "custody", "high court", "supreme court", "law", "sc")):
             wh = (
-                f"• ఆంధ్రప్రదేశ్‌లో {title}కు సంబంధించిన కీలక చట్టపరమైన పరిణామాలు మరియు నివేదికలు వెల్లడయ్యాయి.\n"
-                f"• సంబంధిత న్యాయస్థానం మరియు ఉన్నతాధికారులు దర్యాప్తు పురోగతిని సమీక్షిస్తూ తగిన ఆదేశాలు జారీ చేశారు."
+                f"• ఆంధ్రప్రదేశ్‌లో {title} అంశంపై కోర్టు మరియు పోలీస్ శాఖ కీలక ఆదేశాలు ఇచ్చాయి.\n"
+                f"• బాధితులకు న్యాయం జరిగేలా సమగ్ర విచారణ జరపాలని అధికారులు ఆదేశించారు."
             )
-            wm = "• రాష్ట్రంలో న్యాయపరమైన జవాబుదారీతనం, పారదర్శకత మరియు పౌర రక్షణ ప్రమాణాలను కాపాడటంలో ఇది కీలక పరిణామం."
-        elif any(w in t_lower for w in ("power", "energy", "electricity", "minister", "water", "polavaram", "amaravati", "infra", "project", "road", "rail")):
+            wm = "• రాష్ట్రంలో చట్టం, న్యాయపరమైన పారదర్శకత మరియు ప్రజల భద్రతకు ఇది చాలా ముఖ్యం."
+        elif any(w in t_lower for w in ("cement", "invest", "crore", "industry", "company", "jobs", "plant")):
             wh = (
-                f"• {title}పై ఆంధ్రప్రదేశ్ ప్రభుత్వం మరియు సంబంధిత శాఖాధికారులు సమీక్ష నిర్వహించి తాజా ఆదేశాలు ఇచ్చారు.\n"
-                f"• రాష్ట్రవ్యాప్తంగా వనరుల సమర్థ వినియోగం, ఇంధన పొదుపు మరియు ప్రాజెక్టుల పురోగతిపై ప్రత్యేక దృష్టి సారించారు."
+                f"• ఆంధ్రప్రదేశ్‌లో భారీ పెట్టుబడులతో కొత్త ప్లాంట్లు ఏర్పాటు చేయాలని నిర్ణయించారు.\n"
+                f"• దీని ద్వారా వేలాది మంది స్థానిక యువతకు ఉపాధి, కొత్త ఉద్యోగ అవకాశాలు లభిస్తాయి."
             )
-            wm = "• రాష్ట్ర మౌలిక సదుపాయాల సమగ్ర విస్తరణ, పారిశ్రామిక వృద్ధి మరియు ప్రజలకు నాణ్యమైన సేవలందించేందుకు ఇది తోడ్పడుతుంది."
-        elif any(w in t_lower for w in ("protest", "strike", "rajaka", "community", "sc status", "reservation", "welfare", "demand", "scheme")):
+            wm = "• రాష్ట్ర పారిశ్రామిక ప్రగతికి ఊతం ఇచ్చి, స్థానిక ఆర్థిక వ్యవస్థను వేగంగా ముందుకు నడిపిస్తుంది."
+        elif any(w in t_lower for w in ("power", "energy", "electricity", "minister", "water", "polavaram", "amaravati", "infra", "project", "road", "rail", "orr")):
             wh = (
-                f"• {title} డిమాండ్‌తో సంబంధిత వర్గాలు తమ విజ్ఞప్తులు మరియు నిరసనలను ప్రభుత్వ దృష్టికి తీసుకొచ్చాయి.\n"
-                f"• శాంతిభద్రతల పర్యవేక్షణతో పాటు సమస్యల పరిష్కారం కోసం అధికారులు మరియు ప్రజాప్రతినిధులు సంప్రదింపులు జరుపుతున్నారు."
+                f"• ఆంధ్రప్రదేశ్‌లో {title} పనులను వేగవంతం చేయాలని ప్రభుత్వం ఆదేశించింది.\n"
+                f"• నిధుల కేటాయింపు, నాణ్యతా ప్రమాణాలు మరియు త్వరితగతిన పూర్తి చేయడంపై సమీక్ష నిర్వహించారు."
             )
-            wm = "• సామాజిక న్యాయం, ప్రజా హక్కుల సాధన మరియు రాష్ట్ర ప్రభుత్వ విధాన నిర్ణయాలపై నేరుగా ప్రభావం చూపే అంశం."
-        elif any(w in t_lower for w in ("book", "release", "culture", "event", "film", "puranam", "literature", "award")):
+            wm = "• ప్రజలకు మెరుగైన రవాణా, నిరంతర విద్యుత్ మరియు ఆధునిక మౌలిక వసతులు అందుబాటులోకి వస్తాయి."
+        elif any(w in t_lower for w in ("protest", "strike", "rajaka", "community", "sc status", "reservation", "welfare", "demand", "scheme", "foundation", "eye", "health")):
             wh = (
-                f"• ఆంధ్రప్రదేశ్ సాంస్కృతిక వేదికపై {title} కార్యక్రమం ఘనంగా నిర్వహించబడింది.\n"
-                f"• ప్రముఖులు మరియు విశ్లేషకులు ఈ పరిణామం యొక్క ప్రాధాన్యతను, సాహిత్య మరియు సామాజిక విలువలను కొనియాడారు."
+                f"• {title} అంశంపై ప్రజలు మరియు సంబంధిత వర్గాలు తమ అభిప్రాయాలను వెల్లడించాయి.\n"
+                f"• ప్రజలకు నాణ్యమైన సేవలు అందించేందుకు మరియు సమస్యల పరిష్కారానికి అధికారులు చర్యలు ప్రారంభించారు."
             )
-            wm = "• తెలుగు సంస్కృతి, సాహిత్య వికాసం మరియు సమకాలీన సామాజిక ఆలోచనల ప్రతిబింబంగా నిలుస్తుంది."
+            wm = "• ప్రజారోగ్యం, సామాజిక న్యాయం మరియు సంక్షేమ పథకాల అమలులో ఇది కీలకమైన అడుగు."
         else:
-            if snippet and len(snippet) >= 40:
+            if snippet and len(snippet) >= 30:
                 wh = (
-                    f"• {title}కు సంబంధించి తాజా క్షేత్రస్థాయి నివేదికలు వెల్లడయ్యాయి.\n"
+                    f"• {title}కు సంబంధించిన తాజా వివరాలు నివేదించబడ్డాయి.\n"
                     f"• {snippet.rstrip('.')}."
                 )
             else:
                 wh = (
-                    f"• ఆంధ్రప్రదేశ్‌లో {title}కు సంబంధించిన అధికారిక వివరాలు నివేదించబడ్డాయి.\n"
-                    f"• సంబంధిత అధికార యంత్రాంగం తాజా పరిస్థితులను నిరంతరం పర్యవేక్షిస్తూ తగిన చర్యలు తీసుకుంటోంది."
+                    f"• ఆంధ్రప్రదేశ్‌లో {title}పై ప్రభుత్వం మరియు అధికారులు దృష్టి సారించారు.\n"
+                    f"• క్షేత్రస్థాయిలో తాజా పరిస్థితిని అధికారులు నిరంతరం పర్యవేక్షిస్తున్నారు."
                 )
-            wm = "• ఆంధ్రప్రదేశ్ రాష్ట్ర పరిపాలన, ప్రాంతీయ ప్రయోజనాలు మరియు ప్రజా సంక్షేమ పరంగా ప్రాముఖ్యత కలిగిన అంశం."
+            wm = "• రాష్ట్ర అభివృద్ధి, ప్రజా సంక్షేమం మరియు పాలనా పరంగా ఇది ముఖ్యమైన పరిణామం."
         return {"what_happened": wh, "why_it_matters": wm}
 
     elif category == "india":
-        # India National News — Multi-bullet factual & contextual synthesis
-        if any(w in t_lower for w in ("vote", "voting", "bypoll", "poll", "election", "constituency", "bjp", "congress", "assembly")):
+        # India National News — Balanced, punchy, human-readable bullet points
+        if any(w in t_lower for w in ("vote", "voting", "bypoll", "poll", "election", "constituency", "bjp", "congress", "assembly", "sir", "blo", "voter")):
             wh = (
-                f"• Polling and key electoral proceedings commenced for {title}.\n"
-                f"• Key political parties have mobilized field campaigns while security personnel maintain tight vigilance across polling stations."
+                f"• Key voting and electoral developments were reported regarding {title}.\n"
+                f"• Political parties and election authorities have stepped up ground coordination and monitoring."
             )
-            wm = "• Serves as a vital bellwether for voter sentiment and shifts in regional political dynamics."
+            wm = "• Directly influences voter turnout, transparency, and regional political momentum."
         elif any(w in t_lower for w in ("strike", "vessel", "navy", "crew", "killed", "attack", "border", "defense", "military", "ship")):
             wh = (
-                f"• Critical security and operational developments were reported regarding {title}.\n"
-                f"• Maritime and external affairs authorities are coordinating emergency response, damage assessment, and crew safety protocols."
+                f"• Critical maritime and security alerts emerged regarding {title}.\n"
+                f"• Defense and external affairs teams are coordinating immediate assistance and crew safety."
             )
-            wm = "• Highlights international maritime safety risks, strategic defense readiness, and protection of Indian personnel."
+            wm = "• Highlights regional maritime security priorities and protection for Indian personnel abroad."
         elif any(w in t_lower for w in ("fire", "accident", "blast", "rescue", "hospital", "collapsed", "injured")):
             wh = (
-                f"• Emergency services and municipal teams rushed to the site following reports of {title}.\n"
-                f"• Rescue operations were carried out swiftly with safety audits and official inquiries initiated into the cause."
+                f"• Emergency rescue teams rushed to the site following reports of {title}.\n"
+                f"• First responders brought the situation under control, and safety audits are underway."
             )
-            wm = "• Underscores the critical necessity of rigorous public safety enforcement and workplace safety compliance."
-        elif any(w in t_lower for w in ("reservation", "local body", "panchayat", "cabinet", "court", "bill", "ordinance")):
+            wm = "• Emphasizes the need for strict public safety measures and rapid emergency response."
+        elif any(w in t_lower for w in ("detained", "rahul", "protest", "dharna", "opposition", "police", "march")):
             wh = (
-                f"• Key administrative and legal milestones were formalized regarding {title}.\n"
-                f"• State and central bodies are reviewing implementation timelines and public representation frameworks."
+                f"• Political leaders staged high-profile protests regarding {title}.\n"
+                f"• Opposition parties raised key demands while law enforcement managed the demonstration."
             )
-            wm = "• Directly impacts grassroots democratic governance, administrative policy timelines, and citizen representation."
-        elif any(w in t_lower for w in ("tourist", "crowd", "temple", "dham", "traffic", "pilgrim", "act")):
-            wh = (
-                f"• Massive surges in visitor numbers and public activity were reported for {title}.\n"
-                f"• District authorities and local administration are preparing crowd regulation, transport, and safety measures."
-            )
-            wm = "• Points to the urgent need for sustainable regional tourism planning and capacity management."
+            wm = "• Signals heightened political tensions and intense debate on constitutional rights."
         else:
-            if snippet and len(snippet) >= 40:
+            if snippet and len(snippet) >= 30:
                 wh = (
-                    f"• Official developments were reported regarding {title}.\n"
+                    f"• Key national developments were confirmed regarding {title}.\n"
                     f"• {snippet.rstrip('.')}."
                 )
             else:
                 wh = (
-                    f"• Key official updates and field developments were reported regarding {title}.\n"
-                    f"• Relevant ministries, investigative bodies, and stakeholders are monitoring follow-up actions."
+                    f"• Official updates were announced regarding {title}.\n"
+                    f"• Concerned ministries and agencies are tracking next steps and implementation."
                 )
-            wm = "• Holds strategic relevance for national policy execution, public institutional accountability, and citizen welfare."
+            wm = "• Holds policy significance for governance, civic welfare, and national administration."
         return {"what_happened": wh, "why_it_matters": wm}
 
     elif category == "cinema":
         wh = (
-            f"• Major entertainment updates emerged regarding {title}.\n"
-            f"• Industry buzz, teaser/trailer reactions, and box office expectations are generating strong fan anticipation."
+            f"• Major film updates and announcements dropped regarding {title}.\n"
+            f"• Fans and trade analysts are tracking the teaser buzz, shooting schedules, and release plans."
         )
-        wm = "• Reflects current commercial momentum, audience interest, and theatrical release stakes in Indian cinema."
+        wm = "• Sets box office momentum and strong audience anticipation across the film industry."
         return {"what_happened": wh, "why_it_matters": wm}
 
     elif category == "ai":
         wh = (
-            f"• Technical benchmarks and architecture updates were announced for {title}.\n"
-            f"• Developers and AI researchers are analyzing performance capabilities, practical tooling, and safety implications."
+            f"• New technical capabilities and benchmark results were unveiled for {title}.\n"
+            f"• Engineers and researchers are evaluating the practical performance and safety guardrails."
         )
-        wm = "• Direct catalyst for next-generation developer tooling, model efficiency, and AI safety standards."
+        wm = "• Speeds up developer workflows and sets the pace for real-world AI deployment."
         return {"what_happened": wh, "why_it_matters": wm}
 
     else:  # world
         wh = (
-            f"• Key diplomatic, geopolitical, and regional developments emerged regarding {title}.\n"
-            f"• International observers and governmental bodies are tracking the situation and evaluating broader impacts."
+            f"• Important international developments were reported regarding {title}.\n"
+            f"• Diplomatic officials and regional bodies are assessing the immediate global impact."
         )
-        wm = "• Influences global trade stability, regional diplomatic balance, and cross-border cooperation."
+        wm = "• Influences geopolitical stability, cross-border trade, and international diplomacy."
         return {"what_happened": wh, "why_it_matters": wm}
 
 
@@ -176,16 +170,16 @@ async def summarize_category_articles(
     prompt_lines = [
         f"You are a top-tier factual news intelligence analyst. Summarize the following {len(items)} {category.upper()} news articles.",
         f"Output Language: {target_lang}.",
-        "STRICT MANDATORY REQUIREMENTS:",
-        "1. DO NOT simply repeat the headline. Extract real facts, key actions, parties involved, locations, or data points.",
-        "2. 'what_happened': Must contain at least 2 distinct, informative bullet points separated by newlines (e.g. '• First key fact...\\n• Second follow-up detail...'). Never provide just 1 generic sentence.",
-        "3. 'why_it_matters': Must be a unique, context-specific 1-2 sentence analysis explaining the exact impact of THIS specific story. NEVER reuse a generic template or boilerplate phrase across items.",
-        "4. If category is 'telugu' or language is 'te', both 'what_happened' and 'why_it_matters' MUST be 100% in natural, fluent Telugu (తెలుగు) focusing on Andhra Pradesh state governance, welfare, public health, law & order, or local impact.",
-        "5. If category is 'india', focus on national policy, constitutional/legal, economic, defense, or infrastructure significance.",
-        "6. If category is 'cinema', focus on Tollywood / Indian cinema box office, shoot updates, teaser/trailer buzz, casting, or director insights.",
-        "7. If category is 'ai', focus on breakthrough models, developer tooling, hardware, or AI safety/misuse incidents.",
-        "8. Return ONLY valid JSON format with NO markdown wrapping outside: {\"items\": [{\"what_happened\": \"• ...\\n• ...\", \"why_it_matters\": \"...\"}]}.",
-        f"9. Output must contain exactly {len(items)} items in the same order as provided.\n",
+        "CRITICAL FORMAT & LENGTH RULES:",
+        "1. DO NOT simply copy/paste or echo the headline.",
+        "2. 'what_happened': Must contain EXACTLY 2 to 3 crisp, balanced bullet points, separated by newlines with '• ' at the start of each bullet.",
+        "3. Bullet point length rule: Keep each bullet point to 1-2 punchy sentences (approx 15-25 words each). DO NOT make long runaway paragraphs or 1-word fragments. Make them highly readable and informative.",
+        "4. 'why_it_matters': Must be EXACTLY 1 concise, insightful sentence explaining the real-world impact (NEVER a generic template).",
+        "5. TELUGU TONE (if category is 'telugu' or language is 'te'): Use natural, everyday conversational Telugu (దైనందిన వ్యవహారిక తెలుగు భాష). Avoid heavy, ancient, bookish Sanskrit vocabulary. Keep it clear, simple, and engaging for daily readers.",
+        "6. If category is 'telugu', focus on Andhra Pradesh state news, Amaravati, Polavaram, investments, state ministers, local governance, and civic welfare.",
+        "7. If category is 'cinema', focus on Tollywood / Indian cinema box office, shoot updates, teaser/trailer buzz, casting, or director insights.",
+        "8. Return ONLY valid JSON format with NO markdown wrapping outside: {\"items\": [{\"what_happened\": \"• Point 1\\n• Point 2\", \"why_it_matters\": \"...\"}]}.",
+        f"9. Output must contain exactly {len(items)} items in the same order.\n",
     ]
 
     for idx, itm in enumerate(items, 1):
@@ -218,4 +212,5 @@ async def summarize_category_articles(
         logger.warning("AI summarization failed for category %s: %s. Using deterministic fallback.", category, err)
 
     return [_generate_topic_aware_fallback(item, category) for item in items]
+
 

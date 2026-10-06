@@ -56,47 +56,65 @@ def _to_bullets(text: str, is_what_happened: bool = False) -> str:
     cleaned = clean_html_text(text)
     if not cleaned:
         if is_what_happened:
-            return "• Details are being actively verified by news desks.\n• Key stakeholders and authorities are reviewing the situation."
-        return "• Notable development with direct regional and public interest."
+            return "• Key developments are being actively verified.\n• Relevant authorities are reviewing the latest updates."
+        return "• Notable development with direct public and regional interest."
 
-    lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+    # Normalize inline bullet characters: if text has inline " • " or " ▪ ", convert to line breaks
+    normalized = cleaned.replace(" • ", "\n• ").replace(" ▪ ", "\n• ").replace(" * ", "\n• ")
+
+    raw_lines = [line.strip() for line in normalized.splitlines() if line.strip()]
     bullets = []
-    for line in lines:
-        if line.startswith(("*", "-", "•")):
-            b = line.lstrip("*-• ").strip()
-            if b:
-                bullets.append(f"• {b}")
+
+    for line in raw_lines:
+        if line.startswith(("•", "*", "-", "▪")):
+            parts = [p.strip() for p in line.split("•") if p.strip()]
+            for p in parts:
+                clean_p = p.lstrip("*-▪ ").strip()
+                if len(clean_p) > 5:
+                    bullets.append(f"• {clean_p}")
         else:
-            sentences = [s.strip() for s in line.split(". ") if s.strip()]
-            for s in sentences:
-                s_clean = s.rstrip(".") + "."
+            # Check if line has multiple sentences (avoid splitting on initials/abbreviations like Rs. or U.T.)
+            parts = [s.strip() for s in line.split(". ") if s.strip()]
+            if len(parts) > 1 and all(len(p) > 15 for p in parts):
+                for p in parts:
+                    s_clean = p.rstrip(".") + "."
+                    bullets.append(f"• {s_clean}")
+            else:
+                s_clean = line.rstrip(".") + "."
                 if len(s_clean) > 5:
                     bullets.append(f"• {s_clean}")
 
-    # Deduplicate while preserving order
+    # Deduplicate while preserving order and filter out short fragments
     seen = set()
     deduped = []
     for b in bullets:
-        key = b.lower().strip()
+        clean_content = b.lstrip("• ").strip()
+        # Filter out broken 1-word or tiny fragments (e.g. "• Law.", "• Order.")
+        if len(clean_content) < 10 or len(clean_content.split()) < 2:
+            continue
+        key = clean_content.lower()
         if key not in seen:
             seen.add(key)
-            deduped.append(b)
+            deduped.append(f"• {clean_content}")
 
-    # For "What happened", strictly enforce at least 2 distinct bullet points
-    if is_what_happened and len(deduped) < 2:
-        single = deduped[0].lstrip("• ").strip() if deduped else cleaned
-        # Check if single sentence contains compound conjunctions/separators
-        for sep in ["; ", " — ", " - ", ", while ", ", as ", ", and also ", " and "]:
+    # If we got at least 2 distinct bullets, return them (up to 2-3 clean bullets)
+    if len(deduped) >= 2:
+        return "\n".join(deduped[:3])
+
+    # If is_what_happened and we only have 1 bullet, split compound sentences cleanly
+    if is_what_happened and len(deduped) == 1:
+        single = deduped[0].lstrip("• ").strip()
+        for sep in ["; ", " — ", " - ", ", while ", ", as well as ", ", and also ", ", and ", " మరియు "]:
             if sep in single:
                 p1, p2 = single.split(sep, 1)
-                if len(p1) >= 15 and len(p2) >= 15:
+                if len(p1) >= 20 and len(p2) >= 20:
                     return f"• {p1.rstrip('.')}.\n• {p2.capitalize().rstrip('.')}."
 
-        # If no natural split point, supply an intelligent contextual secondary bullet
-        if any("\u0c00" <= c <= "\u0c7f" for c in single):  # Telugu script
-            return f"• {single}\n• సంబంధిత అధికారులు మరియు వర్గాలు ఈ పరిణామాలపై తదుపరి చర్యలను పర్యవేక్షిస్తున్నారు."
+        # If it's Telugu, add a natural everyday Telugu second line
+        if any("\u0c00" <= c <= "\u0c7f" for c in single):
+            return f"• {single}\n• ఈ అంశంపై పూర్తి వివరాలు మరియు తదుపరి చర్యలు త్వరలోనే రానున్నాయి."
         else:
-            return f"• {single}\n• Authorities and key stakeholders are actively monitoring follow-up actions."
+            return f"• {single}\n• Official updates and further details are expected soon."
 
     if not deduped:
         return f"• {cleaned}"

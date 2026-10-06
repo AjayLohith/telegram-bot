@@ -130,3 +130,25 @@ def test_telugu_and_india_multi_bullet_formatting():
     wh_in_section = formatted_india.split("<b>What happened:</b>")[1].split("<b>Why it matters:</b>")[0]
     assert wh_in_section.count("•") >= 2
 
+
+def test_inline_bullets_and_clean_formatting():
+    from app.news.digest import _to_bullets
+
+    # Case 1: Inline bullet symbols in one line from LLM
+    raw_ai_text = "• First key update happened here. • Second key follow up detail was reported."
+    formatted = _to_bullets(raw_ai_text, is_what_happened=True)
+    assert formatted.count("•") == 2
+    assert "• First key update happened here." in formatted
+    assert "• Second key follow up detail was reported." in formatted
+    # Must NOT have double bullets or generic fallback appended
+    assert "పర్యవేక్షిస్తున్నారు" not in formatted
+    assert "monitoring" not in formatted
+
+    # Case 2: Broken abbreviation split like 'Law. Order' should not produce single-word bullet
+    raw_abbr_text = "Rahul Gandhi was detained during a sit-in protest at Akashvani Bhawan. Opposition leaders demanded immediate action."
+    formatted_abbr = _to_bullets(raw_abbr_text, is_what_happened=True)
+    assert formatted_abbr.count("•") >= 2
+    for line in formatted_abbr.splitlines():
+        assert len(line.lstrip("• ").split()) >= 2
+
+
