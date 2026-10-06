@@ -80,3 +80,53 @@ def test_sanitize_zero_urls_strips_all_links():
     assert "href=" not in clean
     assert "[our blog]" not in clean
     assert "Source: Reuters" in clean
+
+
+def test_telugu_and_india_multi_bullet_formatting():
+    from app.news.summarizer import _generate_topic_aware_fallback
+
+    # Telugu AP News Item
+    ap_item = {
+        "title": "Supreme Court asks Andhra Pradesh high court to monitor child’s death probe after anti-malaria drug admin",
+        "snippet": "",
+        "source": "The Times of India",
+    }
+    fb_telugu = _generate_topic_aware_fallback(ap_item, "telugu")
+    formatted_telugu = format_single_news_item(
+        category="telugu",
+        index=1,
+        headline=ap_item["title"],
+        what_happened=fb_telugu["what_happened"],
+        why_it_matters=fb_telugu["why_it_matters"],
+        source=ap_item["source"],
+    )
+    assert "<b>🟡 AP State (తెలుగు) #1 —" in formatted_telugu
+    assert "<b>What happened:</b>" in formatted_telugu
+    assert "<b>Why it matters:</b>" in formatted_telugu
+    # Verify at least 2 bullets in what happened
+    wh_section = formatted_telugu.split("<b>What happened:</b>")[1].split("<b>Why it matters:</b>")[0]
+    assert wh_section.count("•") >= 2
+    # Verify non-empty Telugu text
+    assert any("\u0c00" <= c <= "\u0c7f" for c in formatted_telugu)
+
+    # India National News Item
+    in_item = {
+        "title": "Voting in high-stakes bypolls in three States, one U.T. today",
+        "snippet": "In Assam’s Nagaon, where the Lok Sabha byelection will be held, the fight is expected to be between the ruling BJP, the Congress and the AIUDF.",
+        "source": "The Hindu National",
+    }
+    fb_india = _generate_topic_aware_fallback(in_item, "india")
+    formatted_india = format_single_news_item(
+        category="india",
+        index=1,
+        headline=in_item["title"],
+        what_happened=fb_india["what_happened"],
+        why_it_matters=fb_india["why_it_matters"],
+        source=in_item["source"],
+    )
+    assert "<b>🇮🇳 India #1 —" in formatted_india
+    assert "<b>What happened:</b>" in formatted_india
+    assert "<b>Why it matters:</b>" in formatted_india
+    wh_in_section = formatted_india.split("<b>What happened:</b>")[1].split("<b>Why it matters:</b>")[0]
+    assert wh_in_section.count("•") >= 2
+

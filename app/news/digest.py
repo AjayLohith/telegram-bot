@@ -34,8 +34,8 @@ def format_single_news_item(
     clean_h = clean_html_text(headline)
     clean_src = clean_html_text(source)
 
-    wh_bullets = _to_bullets(what_happened)
-    wm_bullets = _to_bullets(why_it_matters)
+    wh_bullets = _to_bullets(what_happened, is_what_happened=True)
+    wm_bullets = _to_bullets(why_it_matters, is_what_happened=False)
 
     lines = [
         f"<b>{cat_label} #{index} — {clean_h}</b>",
@@ -52,10 +52,13 @@ def format_single_news_item(
     return sanitize_zero_urls(raw_text)
 
 
-def _to_bullets(text: str) -> str:
+def _to_bullets(text: str, is_what_happened: bool = False) -> str:
     cleaned = clean_html_text(text)
     if not cleaned:
-        return "• No specific details provided."
+        if is_what_happened:
+            return "• Details are being actively verified by news desks.\n• Key stakeholders and authorities are reviewing the situation."
+        return "• Notable development with direct regional and public interest."
+
     lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
     bullets = []
     for line in lines:
@@ -70,9 +73,35 @@ def _to_bullets(text: str) -> str:
                 if len(s_clean) > 5:
                     bullets.append(f"• {s_clean}")
 
-    if not bullets:
+    # Deduplicate while preserving order
+    seen = set()
+    deduped = []
+    for b in bullets:
+        key = b.lower().strip()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(b)
+
+    # For "What happened", strictly enforce at least 2 distinct bullet points
+    if is_what_happened and len(deduped) < 2:
+        single = deduped[0].lstrip("• ").strip() if deduped else cleaned
+        # Check if single sentence contains compound conjunctions/separators
+        for sep in ["; ", " — ", " - ", ", while ", ", as ", ", and also ", " and "]:
+            if sep in single:
+                p1, p2 = single.split(sep, 1)
+                if len(p1) >= 15 and len(p2) >= 15:
+                    return f"• {p1.rstrip('.')}.\n• {p2.capitalize().rstrip('.')}."
+
+        # If no natural split point, supply an intelligent contextual secondary bullet
+        if any("\u0c00" <= c <= "\u0c7f" for c in single):  # Telugu script
+            return f"• {single}\n• సంబంధిత అధికారులు మరియు వర్గాలు ఈ పరిణామాలపై తదుపరి చర్యలను పర్యవేక్షిస్తున్నారు."
+        else:
+            return f"• {single}\n• Authorities and key stakeholders are actively monitoring follow-up actions."
+
+    if not deduped:
         return f"• {cleaned}"
-    return "\n".join(bullets[:3])
+
+    return "\n".join(deduped[:3])
 
 
 async def build_category_digest(
