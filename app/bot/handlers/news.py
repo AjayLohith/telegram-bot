@@ -107,7 +107,7 @@ async def cinema_news_cmd(message: Message) -> None:
 @router.message(Command("telugu", "ap", "andhra"))
 async def telugu_news_cmd(message: Message) -> None:
     lang = _get_user_lang(message.from_user.id)
-    status_msg = await message.answer("🔄 Fetching 5 Andhra Pradesh State developments (తెలుగు)...")
+    status_msg = await message.answer("🔄 Fetching 5 Andhra Pradesh State developments...")
     with SessionLocal() as session:
         text = await build_category_digest(session, "telugu", limit=5, language=lang)
     await status_msg.delete()

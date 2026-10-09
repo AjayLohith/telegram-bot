@@ -1,20 +1,24 @@
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any
 
 from app.ai.providers import AIRouter, ProviderError
+from app.news.language import contains_telugu_script, is_valid_ap_english_article
 from app.news.verification import clean_html_text
 
 logger = logging.getLogger(__name__)
 
-CATEGORY_DEFAULT_WHY: dict[str, str] = {
-    "ai": "Signals significant progress, viral developments, or safety concerns in AI models and tooling.",
-    "world": "Affects regional geopolitical balance, environmental resilience, or geographic stability.",
-    "cinema": "Highlights major box office trends, movie announcements, upcoming releases, or industry buzz.",
-    "telugu": "ఆంధ్రప్రదేశ్ రాష్ట్ర అభివృద్ధి, పరిపాలన లేదా ప్రజా సంక్షేమానికి సంబంధించిన ముఖ్యమైన వార్త.",
-    "india": "Impacts India's national development, technological advancement, economy, or public policy.",
-}
+# Boilerplate patterns that must be stripped or rejected
+_GENERIC_PREFIXES = [
+    re.compile(r"^official updates were (announced|reported) regarding\s*", re.IGNORECASE),
+    re.compile(r"^key (national |regional )?developments were (confirmed|reported) regarding\s*", re.IGNORECASE),
+    re.compile(r"^new developments were reported regarding\s*", re.IGNORECASE),
+    re.compile(r"^concerned ministries and agencies are tracking next steps and implementation\.?", re.IGNORECASE),
+    re.compile(r"^authorities and (key )?stakeholders are actively monitoring follow-up actions\.?", re.IGNORECASE),
+    re.compile(r"^holds policy significance for governance, civic welfare, and national administration\.?", re.IGNORECASE),
+]
 
 
 @dataclass
@@ -37,115 +41,66 @@ def strip_code_fences(text: str) -> str:
     return text.strip()
 
 
-def _generate_topic_aware_fallback(item: dict[str, Any], category: str) -> dict[str, str]:
-    """Generates rich, topic-specific multi-bullet summaries and unique why-it-matters rationale."""
+def sanitize_bullet_text(text: str, headline: str = "") -> str:
+    """Removes generic introductory phrases and ensures bullet points add distinct factual value."""
+    if not text:
+        return ""
+    clean = text.strip()
+    for pattern in _GENERIC_PREFIXES:
+        clean = pattern.sub("", clean).strip()
+
+    # If the bullet is just a verbatim copy of the headline, ensure it reads as a proper factual sentence
+    if headline and clean.lower().rstrip(".") == headline.lower().rstrip("."):
+        clean = f"Reports confirmed {clean[0].lower() + clean[1:] if len(clean) > 1 else clean}"
+    return clean
+
+
+def _generate_grounded_fallback(item: dict[str, Any], category: str) -> dict[str, str]:
+    """Generates an honest, article-specific summary and why-it-matters directly grounded in available data.
+    
+    Never fabricates facts or inserts generic governance boilerplate.
+    All outputs for AP news are 100% in English.
+    """
     title = clean_html_text(item.get("title", ""))
     snippet = clean_html_text(item.get("snippet", ""))
     t_lower = (title + " " + snippet).lower()
 
-    if category == "telugu":
-        # Andhra Pradesh State News — Natural, everyday spoken Telugu (వ్యవహారిక తెలుగు)
-        if any(w in t_lower for w in ("court", "judge", "police", "probe", "death", "arrest", "remand", "custody", "high court", "supreme court", "law", "sc")):
-            wh = (
-                f"• ఆంధ్రప్రదేశ్‌లో {title} అంశంపై కోర్టు మరియు పోలీస్ శాఖ కీలక ఆదేశాలు ఇచ్చాయి.\n"
-                f"• బాధితులకు న్యాయం జరిగేలా సమగ్ర విచారణ జరపాలని అధికారులు ఆదేశించారు."
-            )
-            wm = "• రాష్ట్రంలో చట్టం, న్యాయపరమైన పారదర్శకత మరియు ప్రజల భద్రతకు ఇది చాలా ముఖ్యం."
-        elif any(w in t_lower for w in ("cement", "invest", "crore", "industry", "company", "jobs", "plant")):
-            wh = (
-                f"• ఆంధ్రప్రదేశ్‌లో భారీ పెట్టుబడులతో కొత్త ప్లాంట్లు ఏర్పాటు చేయాలని నిర్ణయించారు.\n"
-                f"• దీని ద్వారా వేలాది మంది స్థానిక యువతకు ఉపాధి, కొత్త ఉద్యోగ అవకాశాలు లభిస్తాయి."
-            )
-            wm = "• రాష్ట్ర పారిశ్రామిక ప్రగతికి ఊతం ఇచ్చి, స్థానిక ఆర్థిక వ్యవస్థను వేగంగా ముందుకు నడిపిస్తుంది."
-        elif any(w in t_lower for w in ("power", "energy", "electricity", "minister", "water", "polavaram", "amaravati", "infra", "project", "road", "rail", "orr")):
-            wh = (
-                f"• ఆంధ్రప్రదేశ్‌లో {title} పనులను వేగవంతం చేయాలని ప్రభుత్వం ఆదేశించింది.\n"
-                f"• నిధుల కేటాయింపు, నాణ్యతా ప్రమాణాలు మరియు త్వరితగతిన పూర్తి చేయడంపై సమీక్ష నిర్వహించారు."
-            )
-            wm = "• ప్రజలకు మెరుగైన రవాణా, నిరంతర విద్యుత్ మరియు ఆధునిక మౌలిక వసతులు అందుబాటులోకి వస్తాయి."
-        elif any(w in t_lower for w in ("protest", "strike", "rajaka", "community", "sc status", "reservation", "welfare", "demand", "scheme", "foundation", "eye", "health")):
-            wh = (
-                f"• {title} అంశంపై ప్రజలు మరియు సంబంధిత వర్గాలు తమ అభిప్రాయాలను వెల్లడించాయి.\n"
-                f"• ప్రజలకు నాణ్యమైన సేవలు అందించేందుకు మరియు సమస్యల పరిష్కారానికి అధికారులు చర్యలు ప్రారంభించారు."
-            )
-            wm = "• ప్రజారోగ్యం, సామాజిక న్యాయం మరియు సంక్షేమ పథకాల అమలులో ఇది కీలకమైన అడుగు."
+    # What Happened: Derive directly from snippet if available, else derive from headline
+    if snippet and len(snippet) >= 40:
+        # Split snippet into 1-2 distinct sentences if possible
+        sentences = [s.strip() for s in snippet.split(". ") if s.strip()]
+        if len(sentences) >= 2:
+            wh = f"• {sentences[0].rstrip('.')}.\n• {sentences[1].rstrip('.')}."
         else:
-            if snippet and len(snippet) >= 30:
-                wh = (
-                    f"• {title}కు సంబంధించిన తాజా వివరాలు నివేదించబడ్డాయి.\n"
-                    f"• {snippet.rstrip('.')}."
-                )
-            else:
-                wh = (
-                    f"• ఆంధ్రప్రదేశ్‌లో {title}పై ప్రభుత్వం మరియు అధికారులు దృష్టి సారించారు.\n"
-                    f"• క్షేత్రస్థాయిలో తాజా పరిస్థితిని అధికారులు నిరంతరం పర్యవేక్షిస్తున్నారు."
-                )
-            wm = "• రాష్ట్ర అభివృద్ధి, ప్రజా సంక్షేమం మరియు పాలనా పరంగా ఇది ముఖ్యమైన పరిణామం."
-        return {"what_happened": wh, "why_it_matters": wm}
+            wh = f"• {title.rstrip('.')}.\n• {snippet.rstrip('.')}."
+    else:
+        wh = f"• {title.rstrip('.')}."
 
-    elif category == "india":
-        # India National News — Balanced, punchy, human-readable bullet points
-        if any(w in t_lower for w in ("vote", "voting", "bypoll", "poll", "election", "constituency", "bjp", "congress", "assembly", "sir", "blo", "voter")):
-            wh = (
-                f"• Key voting and electoral developments were reported regarding {title}.\n"
-                f"• Political parties and election authorities have stepped up ground coordination and monitoring."
-            )
-            wm = "• Directly influences voter turnout, transparency, and regional political momentum."
-        elif any(w in t_lower for w in ("strike", "vessel", "navy", "crew", "killed", "attack", "border", "defense", "military", "ship")):
-            wh = (
-                f"• Critical maritime and security alerts emerged regarding {title}.\n"
-                f"• Defense and external affairs teams are coordinating immediate assistance and crew safety."
-            )
-            wm = "• Highlights regional maritime security priorities and protection for Indian personnel abroad."
-        elif any(w in t_lower for w in ("fire", "accident", "blast", "rescue", "hospital", "collapsed", "injured")):
-            wh = (
-                f"• Emergency rescue teams rushed to the site following reports of {title}.\n"
-                f"• First responders brought the situation under control, and safety audits are underway."
-            )
-            wm = "• Emphasizes the need for strict public safety measures and rapid emergency response."
-        elif any(w in t_lower for w in ("detained", "rahul", "protest", "dharna", "opposition", "police", "march")):
-            wh = (
-                f"• Political leaders staged high-profile protests regarding {title}.\n"
-                f"• Opposition parties raised key demands while law enforcement managed the demonstration."
-            )
-            wm = "• Signals heightened political tensions and intense debate on constitutional rights."
-        else:
-            if snippet and len(snippet) >= 30:
-                wh = (
-                    f"• Key national developments were confirmed regarding {title}.\n"
-                    f"• {snippet.rstrip('.')}."
-                )
-            else:
-                wh = (
-                    f"• Official updates were announced regarding {title}.\n"
-                    f"• Concerned ministries and agencies are tracking next steps and implementation."
-                )
-            wm = "• Holds policy significance for governance, civic welfare, and national administration."
-        return {"what_happened": wh, "why_it_matters": wm}
+    # Why It Matters: Grounded in the specific topic of the article
+    if any(w in t_lower for w in ("power", "electricity", "energy", "grid", "demand")):
+        wm = "Directly affects power supply reliability, grid load management, and regional energy costs."
+    elif any(w in t_lower for w in ("road", "highway", "orr", "rail", "transport", "traffic", "bridge", "connectivity")):
+        wm = "Improves regional commuting safety, freight logistics efficiency, and local infrastructure connectivity."
+    elif any(w in t_lower for w in ("invest", "cement", "plant", "crore", "jobs", "industry", "factory")):
+        wm = "Boosts regional industrial growth, production capacity, and employment opportunities for local workers."
+    elif any(w in t_lower for w in ("vote", "voter", "poll", "bypoll", "election", "blo", "form-7", "constituency", "electoral")):
+        wm = "Crucial for safeguarding voter roll accuracy, electoral integrity, and democratic representation."
+    elif any(w in t_lower for w in ("death", "dead", "killed", "probe", "investigat", "police", "arrest", "custody", "murder")):
+        wm = "Essential for ensuring legal accountability, prompt investigative transparency, and public safety."
+    elif any(w in t_lower for w in ("court", "high court", "supreme court", "judge", "bench", "bail")):
+        wm = "Sets vital judicial precedent and reinforces institutional accountability."
+    elif any(w in t_lower for w in ("child", "marriage", "school", "student", "education", "hospital", "health", "eye")):
+        wm = "Directly impacts community welfare, healthcare access, and public protection standards."
+    elif any(w in t_lower for w in ("ai", "model", "deepfake", "algorithm", "software", "chip", "research")):
+        wm = "Drives technical capabilities, developer tooling standards, and responsible deployment practices."
+    elif any(w in t_lower for w in ("movie", "cinema", "trailer", "teaser", "box office", "actor", "director")):
+        wm = "Reflects commercial box office trends, creative talent moves, and audience entertainment interest."
+    elif category == "telugu":
+        wm = "Holds regional significance for Andhra Pradesh state administration, community welfare, or local development."
+    else:
+        wm = "Represents a notable development with direct public, civic, or institutional implications."
 
-    elif category == "cinema":
-        wh = (
-            f"• Major film updates and announcements dropped regarding {title}.\n"
-            f"• Fans and trade analysts are tracking the teaser buzz, shooting schedules, and release plans."
-        )
-        wm = "• Sets box office momentum and strong audience anticipation across the film industry."
-        return {"what_happened": wh, "why_it_matters": wm}
-
-    elif category == "ai":
-        wh = (
-            f"• New technical capabilities and benchmark results were unveiled for {title}.\n"
-            f"• Engineers and researchers are evaluating the practical performance and safety guardrails."
-        )
-        wm = "• Speeds up developer workflows and sets the pace for real-world AI deployment."
-        return {"what_happened": wh, "why_it_matters": wm}
-
-    else:  # world
-        wh = (
-            f"• Important international developments were reported regarding {title}.\n"
-            f"• Diplomatic officials and regional bodies are assessing the immediate global impact."
-        )
-        wm = "• Influences geopolitical stability, cross-border trade, and international diplomacy."
-        return {"what_happened": wh, "why_it_matters": wm}
+    return {"what_happened": wh, "why_it_matters": wm}
 
 
 async def summarize_category_articles(
@@ -154,36 +109,33 @@ async def summarize_category_articles(
     items: list[dict[str, Any]],
     language: str = "en",
 ) -> list[dict[str, str]]:
-    """Summarizes a batch of articles in a category.
-    
-    Returns a list of dicts with keys: 'what_happened', 'why_it_matters'.
-    Falls back deterministically if router_ai is None or on error.
-    """
+    """Summarizes a batch of articles for a category with explicit ID matching and grounded relevance."""
     if not items:
         return []
 
-    if router_ai is None:
-        return [_generate_topic_aware_fallback(item, category) for item in items]
+    # If AP news or standard briefing, enforce English
+    target_lang = "English"
 
-    target_lang = "Telugu (తెలుగు)" if (category == "telugu" or language == "te") else "English"
+    if router_ai is None:
+        return [_generate_grounded_fallback(item, category) for item in items]
 
     prompt_lines = [
-        f"You are a top-tier factual news intelligence analyst. Summarize the following {len(items)} {category.upper()} news articles.",
-        f"Output Language: {target_lang}.",
-        "CRITICAL FORMAT & LENGTH RULES:",
-        "1. DO NOT simply copy/paste or echo the headline.",
-        "2. 'what_happened': Must contain EXACTLY 2 to 3 crisp, balanced bullet points, separated by newlines with '• ' at the start of each bullet.",
-        "3. Bullet point length rule: Keep each bullet point to 1-2 punchy sentences (approx 15-25 words each). DO NOT make long runaway paragraphs or 1-word fragments. Make them highly readable and informative.",
-        "4. 'why_it_matters': Must be EXACTLY 1 concise, insightful sentence explaining the real-world impact (NEVER a generic template).",
-        "5. TELUGU TONE (if category is 'telugu' or language is 'te'): Use natural, everyday conversational Telugu (దైనందిన వ్యవహారిక తెలుగు భాష). Avoid heavy, ancient, bookish Sanskrit vocabulary. Keep it clear, simple, and engaging for daily readers.",
-        "6. If category is 'telugu', focus on Andhra Pradesh state news, Amaravati, Polavaram, investments, state ministers, local governance, and civic welfare.",
-        "7. If category is 'cinema', focus on Tollywood / Indian cinema box office, shoot updates, teaser/trailer buzz, casting, or director insights.",
-        "8. Return ONLY valid JSON format with NO markdown wrapping outside: {\"items\": [{\"what_happened\": \"• Point 1\\n• Point 2\", \"why_it_matters\": \"...\"}]}.",
-        f"9. Output must contain exactly {len(items)} items in the same order.\n",
+        f"You are a factual, high-accuracy news intelligence assistant. Summarize the following {len(items)} {category.upper()} articles.",
+        f"Output Language: {target_lang} (ENGLISH ONLY).",
+        "STRICT MANDATORY RULES:",
+        "1. GROUNDED FACTUALITY: Base summaries STRICTLY on the facts provided in each headline and snippet. Never invent facts, numbers, committees, or events.",
+        "2. NO HEADLINE ECHOES: Do NOT merely copy the headline or prepend generic filler like 'Official updates were announced regarding...'. State the actual concrete facts.",
+        "3. WHAT HAPPENED: Write 1 to 2 concise, informative bullet points separated by newlines with '• ' at the start of each bullet. For short news, 1 clear bullet is better than fabricated bullets.",
+        "4. WHY IT MATTERS: Write exactly 1 concise sentence explaining the specific consequence or real-world significance of THIS particular event (e.g. for power -> supply/grid; for roads -> transit safety/connectivity; for crime -> accountability/justice; for elections -> voting integrity). NEVER use generic policy/governance templates across unrelated stories.",
+        "5. ANDHRA PRADESH (AP) NEWS: Must be written 100% in clear English without any Telugu script characters.",
+        "6. STRUCTURED JSON: Return ONLY valid JSON mapping each article by its exact 'id':",
+        "{\"items\": [{\"id\": \"item_id\", \"what_happened\": \"• Bullet 1\\n• Bullet 2\", \"why_it_matters\": \"...\"}]}",
+        f"7. You must include all {len(items)} items in the output.\n",
     ]
 
     for idx, itm in enumerate(items, 1):
-        prompt_lines.append(f"Article #{idx}:")
+        item_id = str(itm.get("id") or f"art_{idx}")
+        prompt_lines.append(f"Article [ID: {item_id}]:")
         prompt_lines.append(f"Headline: {itm.get('title', '')}")
         prompt_lines.append(f"Source: {itm.get('source', '')}")
         snip = itm.get('snippet', '')
@@ -198,19 +150,45 @@ async def summarize_category_articles(
         clean_json = strip_code_fences(raw_response)
         data = json.loads(clean_json)
         res_items = data.get("items", [])
-        if len(res_items) == len(items):
-            validated = []
-            for r, original in zip(res_items, items):
-                wh = clean_html_text(r.get("what_happened", ""))
-                wm = clean_html_text(r.get("why_it_matters", ""))
-                if wh and wm and len(wh) >= 15:
-                    validated.append({"what_happened": wh, "why_it_matters": wm})
+
+        # Build lookup table by ID
+        res_by_id: dict[str, dict[str, str]] = {}
+        for r in res_items:
+            rid = str(r.get("id", "")).strip()
+            if rid:
+                res_by_id[rid] = r
+
+        validated_list = []
+        for idx, original in enumerate(items, 1):
+            item_id = str(original.get("id") or f"art_{idx}")
+            r = res_by_id.get(item_id)
+
+            # Fallback to index if ID matching was not exact but lengths match
+            if not r and idx - 1 < len(res_items) and not res_items[idx - 1].get("id"):
+                r = res_items[idx - 1]
+
+            if r:
+                wh_raw = clean_html_text(r.get("what_happened", ""))
+                wm_raw = clean_html_text(r.get("why_it_matters", ""))
+
+                # Enforce English for AP category
+                if category == "telugu" and (contains_telugu_script(wh_raw) or contains_telugu_script(wm_raw)):
+                    validated_list.append(_generate_grounded_fallback(original, category))
+                    continue
+
+                wh_clean = sanitize_bullet_text(wh_raw, original.get("title", ""))
+                wm_clean = sanitize_bullet_text(wm_raw)
+
+                if wh_clean and wm_clean and len(wh_clean) >= 10:
+                    validated_list.append({"what_happened": wh_clean, "why_it_matters": wm_clean})
                 else:
-                    validated.append(_generate_topic_aware_fallback(original, category))
-            return validated
+                    validated_list.append(_generate_grounded_fallback(original, category))
+            else:
+                validated_list.append(_generate_grounded_fallback(original, category))
+
+        return validated_list
+
     except (ProviderError, json.JSONDecodeError, KeyError, Exception) as err:
-        logger.warning("AI summarization failed for category %s: %s. Using deterministic fallback.", category, err)
+        logger.warning("AI summarization failed for category %s: %s. Using deterministic grounded fallback.", category, err)
 
-    return [_generate_topic_aware_fallback(item, category) for item in items]
-
-
+    return [_generate_grounded_fallback(item, category) for item in items]

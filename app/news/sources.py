@@ -32,9 +32,10 @@ CATEGORY_SOURCES: dict[str, list[SourceDefinition]] = {
     ],
     "telugu": [
         SourceDefinition("The Hindu Andhra Pradesh", "https://www.thehindu.com/news/national/andhra-pradesh/feeder/default.rss", 2, "telugu"),
-        SourceDefinition("Eenadu AP State News", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+Amaravati+OR+Visakhapatnam+OR+Polavaram+OR+%22AP+government%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
-        SourceDefinition("AP Regional Developments", "https://news.google.com/rss/search?q=%22Andhra+Pradesh+news%22+OR+%22AP+Cabinet%22+OR+%22AP+Assembly%22+OR+%22Andhra+development%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
-        SourceDefinition("AP Welfare & State Infrastructure", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+schemes+OR+infrastructure+OR+welfare+AP&hl=en-IN&gl=IN&ceid=IN:en", 3, "telugu"),
+        SourceDefinition("Times of India AP", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+source%3A%22The+Times+of+India%22+OR+source%3A%22Times+of+India%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
+        SourceDefinition("Indian Express AP", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+source%3A%22The+Indian+Express%22+OR+source%3A%22Indian+Express%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
+        SourceDefinition("Deccan Chronicle AP", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+Amaravati+OR+Visakhapatnam+OR+Vijayawada+source%3A%22Deccan+Chronicle%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
+        SourceDefinition("AP State & Regional News", "https://news.google.com/rss/search?q=%22Andhra+Pradesh%22+Amaravati+OR+Visakhapatnam+OR+Polavaram+OR+%22AP+government%22&hl=en-IN&gl=IN&ceid=IN:en", 2, "telugu"),
     ],
     "india": [
         SourceDefinition("The Hindu National", "https://www.thehindu.com/news/national/feeder/default.rss", 2, "india"),
@@ -48,7 +49,7 @@ CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "ai": "🤖 AI & VIRAL TECH NEWS",
     "world": "🌍 GEOGRAPHY / WORLD NEWS",
     "cinema": "🎬 CINEMA & MOVIE BUZZ",
-    "telugu": "🟡 ANDHRA PRADESH STATE NEWS (ఆంధ్రప్రదేశ్)",
+    "telugu": "🟡 ANDHRA PRADESH STATE NEWS",
     "india": "🇮🇳 INDIA NATIONAL NEWS",
 }
 
@@ -56,6 +57,6 @@ CATEGORY_SHORT_LABELS: dict[str, str] = {
     "ai": "🤖 AI",
     "world": "🌍 World",
     "cinema": "🎬 Cinema",
-    "telugu": "🟡 AP State (తెలుగు)",
+    "telugu": "🟡 AP State",
     "india": "🇮🇳 India",
 }
